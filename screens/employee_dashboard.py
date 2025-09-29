@@ -13,7 +13,7 @@ class AttendanceDashboard(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("LOGIX - Attendance Monitoring System")
-        self.setGeometry(200, 100, 1500, 950)
+        self.setGeometry(200, 100, 1500, 900)
 
         self.setStyleSheet("""
             QWidget {
@@ -121,7 +121,9 @@ class AttendanceDashboard(QWidget):
         self.checkin_id = QLineEdit()
         self.checkin_id.setPlaceholderText("Enter Employee ID")
         self.checkin_id.setFixedHeight(60)
-        self.checkin_id.setStyleSheet("border: 2px solid #e5e7eb; border-radius: 8px; padding: 10px;")
+        self.checkin_id.setStyleSheet("""
+        border: 2px solid #e5e7eb; border-radius: 8px; padding: 10px;
+        """)
 
         # Buttons in a row
         buttons_row = QHBoxLayout()
@@ -193,7 +195,7 @@ class AttendanceDashboard(QWidget):
         staff_btn.clicked.connect(self.show_staff_login)
         admin_btn.clicked.connect(self.show_admin_login)
 
-        # Initial load so table persists across restarts (data pulled from DB)
+        # Initial load so table persists across restarts -- data fetched from db
         self.load_attendance_data()
 
         # refresh to keep in sync with staff adn admin

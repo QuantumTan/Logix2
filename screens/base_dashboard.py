@@ -1,3 +1,4 @@
+# screens/base_dashboard.py
 import sys
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout,
@@ -115,11 +116,14 @@ class DashboardBase(QWidget):
     def __init__(self, title_suffix="Dashboard"):
         super().__init__()
         self.setWindowTitle(f"LOGIX - {title_suffix}")
-        self.setGeometry(200, 100, 1500, 950)
+        self.setGeometry(200, 100, 1500, 900)
         self.current_tab = "attendance"
         self.employee_data = {}
         self.attendance_rows: list[dict] = []
         self.load_employee_data()
+
+        self.inactive_style = "QPushButton { background-color: white; color: #f87171; padding: 5px 30px; border-radius: 15px; font-weight: bold; border: 2px solid #f87171; height: 30px; } QPushButton:hover { background-color: #fef2f2; }"
+        self.active_style = "QPushButton { background-color: #f87171; color: white; padding: 5px 30px; border-radius: 15px; font-weight: bold; border: 2px solid #f87171; height: 30px; } QPushButton:hover { background-color: #ef4444; }"
 
         main_layout = QVBoxLayout()
         main_layout.setContentsMargins(0, 0, 0, 0)
@@ -222,15 +226,15 @@ class DashboardBase(QWidget):
         tabs_layout.addStretch()
 
         attendance_btn = QPushButton("Attendance")
-        attendance_btn.setStyleSheet("background-color: #06b6d4; color: white; padding: 10px 20px; border-radius: 8px; font-weight: bold;")
+        attendance_btn.setStyleSheet(self.active_style)
         attendance_btn.clicked.connect(lambda: self.switch_tab("attendance"))
 
         employee_mgmt_btn = QPushButton("Employee Management")
-        employee_mgmt_btn.setStyleSheet("background-color: white; color: #f87171; padding: 10px 20px; border-radius: 8px; font-weight: bold; border: 2px solid #f87171;")
+        employee_mgmt_btn.setStyleSheet(self.inactive_style)
         employee_mgmt_btn.clicked.connect(lambda: self.switch_tab("employee_management"))
 
         reports_btn = QPushButton("Reports")
-        reports_btn.setStyleSheet("background-color: white; color: #f87171; padding: 10px 20px; border-radius: 8px; font-weight: bold; border: 2px solid #f87171;")
+        reports_btn.setStyleSheet(self.inactive_style)
         reports_btn.clicked.connect(lambda: self.switch_tab("reports"))
 
         tabs_layout.addWidget(attendance_btn)
@@ -621,17 +625,16 @@ class DashboardBase(QWidget):
             layout.insertWidget(0, self.reports_chart, stretch=1)
 
     def update_reports_view(self, period_text):
-        from datetime import date
         periods = {"Daily": "daily", "Weekly": "weekly", "Monthly": "monthly", "Yearly": "yearly"}
         self.report_period = periods.get(period_text, "daily")
         labels, present, late = self.get_report_data(self.report_period)
         title = f"{period_text} Attendance Report"
 
         # --- Fetch stats for cards ---
-        stats = get_today_stats(for_date=date.today())
+        stats = get_today_stats()
         total_present = stats.get('present', 0)
         total_late = stats.get('late', 0)
-        total = total_present + total_late
+        total = total_present + total_late + stats.get('absent', 0)
         attendance_rate = int((total_present / total * 100) if total > 0 else 0)
 
         self.attendance_rate_value.setText(f"{attendance_rate}%")
@@ -665,35 +668,11 @@ class DashboardBase(QWidget):
 
         # Reset previous button
         prev_btn = self.tab_buttons[self.current_tab]
-        prev_btn.setStyleSheet("""
-            QPushButton {
-                background-color: white;
-                color: #f87171;
-                padding: 10px 30px;
-                border-radius: 25px;
-                font-weight: bold;
-                border: 2px solid #f87171;
-            }
-            QPushButton:hover {
-                background-color: #fef2f2;
-            }
-        """)
+        prev_btn.setStyleSheet(self.inactive_style)
 
         # Activate new button
         new_btn = self.tab_buttons[tab_name]
-        new_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #06b6d4;
-                color: white;
-                padding: 10px 30px;
-                border-radius: 25px;
-                font-weight: bold;
-                border: none;
-            }
-            QPushButton:hover {
-                background-color: #0891b2;
-            }
-        """)
+        new_btn.setStyleSheet(self.active_style)
 
         # Switch content
         if tab_name == "attendance":

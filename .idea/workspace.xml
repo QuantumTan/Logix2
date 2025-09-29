@@ -4,27 +4,12 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="424a9e44-a74b-4f9d-8f5e-32cb529758ff" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/assets/employees/#10000.jpg" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/assets/employees/#10001.jpg" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/assets/employees/#75004.jpg" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/assets/logix.png" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/database/db_config.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/database/db_queries.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/database/db_setup.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/screens/add_employee_modal.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/screens/add_staff_modal.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/screens/admin_dashboard.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/screens/base_dashboard.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/screens/change_password_modal.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/screens/emp_details.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/screens/employee_dashboard.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/screens/login_screens/admin_login.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/screens/login_screens/staff_login.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/screens/staff_dashboard.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" />
+    <list default="true" id="424a9e44-a74b-4f9d-8f5e-32cb529758ff" name="Changes" comment="Add core screens and database setup for staff/admin login, employee management, and attendance&#10;&#10;- Implement PyQt6 UI screens: admin/staff login, staff dashboard, add/edit employee/staff modals, change password modal, employee details modal&#10;- Add database setup and config scripts for MySQL (db_setup.py, db_config.py)&#10;- Integrate authentication and employee management logic&#10;- Update workspace.xml for new assets and modules">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/screens/admin_dashboard.py" beforeDir="false" afterPath="$PROJECT_DIR$/screens/admin_dashboard.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/screens/base_dashboard.py" beforeDir="false" afterPath="$PROJECT_DIR$/screens/base_dashboard.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/screens/emp_details.py" beforeDir="false" afterPath="$PROJECT_DIR$/screens/emp_details.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/screens/employee_dashboard.py" beforeDir="false" afterPath="$PROJECT_DIR$/screens/employee_dashboard.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -32,6 +17,11 @@
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
   <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="main" />
+      </map>
+    </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="GitHubPullRequestSearchHistory">{
@@ -62,7 +52,7 @@
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;full-functions&quot;,
     &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
     &quot;last_opened_file_path&quot;: &quot;C:/Users/Jonathan/PycharmProjects/Logix&quot;,
     &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
@@ -133,15 +123,36 @@
       <workItem from="1759033718672" duration="5101000" />
       <workItem from="1759043393710" duration="117000" />
       <workItem from="1759043850217" duration="9272000" />
-      <workItem from="1759105280259" duration="4952000" />
+      <workItem from="1759105280259" duration="5145000" />
+      <workItem from="1759111305420" duration="634000" />
+      <workItem from="1759112102329" duration="373000" />
+      <workItem from="1759114279656" duration="568000" />
+      <workItem from="1759119071436" duration="608000" />
+      <workItem from="1759122019814" duration="136000" />
+      <workItem from="1759124295736" duration="1912000" />
+      <workItem from="1759127610093" duration="300000" />
+      <workItem from="1759137837944" duration="4499000" />
     </task>
+    <task id="LOCAL-00001" summary="Add core screens and database setup for staff/admin login, employee management, and attendance&#10;&#10;- Implement PyQt6 UI screens: admin/staff login, staff dashboard, add/edit employee/staff modals, change password modal, employee details modal&#10;- Add database setup and config scripts for MySQL (db_setup.py, db_config.py)&#10;- Integrate authentication and employee management logic&#10;- Update workspace.xml for new assets and modules">
+      <option name="closed" value="true" />
+      <created>1759110332529</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1759110332529</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Add core screens and database setup for staff/admin login, employee management, and attendance&#10;&#10;- Implement PyQt6 UI screens: admin/staff login, staff dashboard, add/edit employee/staff modals, change password modal, employee details modal&#10;- Add database setup and config scripts for MySQL (db_setup.py, db_config.py)&#10;- Integrate authentication and employee management logic&#10;- Update workspace.xml for new assets and modules" />
+    <option name="LAST_COMMIT_MESSAGE" value="Add core screens and database setup for staff/admin login, employee management, and attendance&#10;&#10;- Implement PyQt6 UI screens: admin/staff login, staff dashboard, add/edit employee/staff modals, change password modal, employee details modal&#10;- Add database setup and config scripts for MySQL (db_setup.py, db_config.py)&#10;- Integrate authentication and employee management logic&#10;- Update workspace.xml for new assets and modules" />
+  </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/Logix$base_dashboard.coverage" NAME="base_dashboard Coverage Results" MODIFIED="1759057641814" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/screens" />
-    <SUITE FILE_PATH="coverage/Logix$main.coverage" NAME="main Coverage Results" MODIFIED="1759110153688" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/Logix$main.coverage" NAME="main Coverage Results" MODIFIED="1759142740369" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
 </project>

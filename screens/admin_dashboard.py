@@ -29,19 +29,8 @@ class AdminDashboard(DashboardBase):
 
     def _setup_staff_accounts_tab(self):
         self.staff_accounts_btn = QPushButton("Staff Accounts")
-        self.staff_accounts_btn.setStyleSheet("""
-            QPushButton {
-                background-color: white;
-                color: #06b6d4;
-                padding: 10px 30px;
-                border-radius: 25px;
-                font-weight: bold;
-                border: 2px solid #06b6d4;
-            }
-            QPushButton:hover {
-                background-color: #ecfeff;
-            }
-        """)
+        self.staff_accounts_btn.setStyleSheet(
+            "QPushButton { background-color: white; color: red; padding: 5px 30px; border-radius: 15px; font-weight: bold; border: 2px solid red; height: 30px; } QPushButton:hover { background-color: #fef2f2; }")
         self.staff_accounts_btn.clicked.connect(lambda: self.switch_tab("staff_accounts"))
         self.tabs_layout.insertWidget(3, self.staff_accounts_btn)
         self.tab_buttons["staff_accounts"] = self.staff_accounts_btn
@@ -54,8 +43,9 @@ class AdminDashboard(DashboardBase):
         top_btn_layout.addStretch()  # pushes button to the right
         self.add_staff_btn = QPushButton("Add Staff")
         self.add_staff_btn.setStyleSheet(
-            "QPushButton {background:#06b6d4;color:white;padding:8px 16px;"
-            "border-radius:8px;font-weight:bold;}"
+            """
+            QPushButton {background:#06b6d4;color:white;padding:8px 16px;
+            border-radius:8px;font-weight:bold;}          """
         )
         self.add_staff_btn.clicked.connect(self.show_add_staff_modal)
         top_btn_layout.addWidget(self.add_staff_btn, alignment=Qt.AlignmentFlag.AlignRight)
@@ -69,8 +59,9 @@ class AdminDashboard(DashboardBase):
             QLineEdit {
                 background-color: white;
                 border: 2px solid #e5e7eb;
-                border-radius: 8px;
+
                 padding: 8px 12px;
+                border-radius: 800px;
                 font-size: 14px;
                 color: #374151;
             }
@@ -155,6 +146,7 @@ class AdminDashboard(DashboardBase):
                 dlg = AddStaffModal(self, initial=user, mode="edit")
                 dlg.staff_added.connect(self._handle_update_staff)
                 dlg.exec()
+
         return handler
 
     def _make_change_password_handler(self, username):
@@ -164,8 +156,10 @@ class AdminDashboard(DashboardBase):
             if user:
                 modal = ChangePasswordModal(self, username=username, full_name=user['full_name'])
                 modal.password_changed.connect(
-                    lambda u, p: add_or_update_staff(u, user['full_name'], user['role'], user['position'], p,mode='update'))
+                    lambda u, p: add_or_update_staff(u, user['full_name'], user['role'], user['position'], p,
+                                                     mode='update'))
                 modal.exec()
+
         return handler
 
     def _make_delete_staff_handler(self, username):
@@ -174,6 +168,7 @@ class AdminDashboard(DashboardBase):
                                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No) == QMessageBox.StandardButton.Yes:
                 delete_staff(username)
                 self.load_staff_table()
+
         return handler
 
     def _handle_add_staff(self, staff):
@@ -190,32 +185,10 @@ class AdminDashboard(DashboardBase):
         if tab_name == "staff_accounts":
             for btn in self.tab_buttons.values():
                 if btn != self.staff_accounts_btn:
-                    btn.setStyleSheet("""
-                        QPushButton {
-                            background-color: white;
-                            color: #f87171;
-                            padding: 10px 30px;
-                            border-radius: 25px;
-                            font-weight: bold;
-                            border: 2px solid #f87171;
-                        }
-                        QPushButton:hover {
-                            background-color: #fef2f2;
-                        }
-                    """)
-            self.staff_accounts_btn.setStyleSheet("""
-                QPushButton {
-                    background-color: #06b6d4;
-                    color: white;
-                    padding: 10px 30px;
-                    border-radius: 25px;
-                    font-weight: bold;
-                    border: none;
-                }
-                QPushButton:hover {
-                    background-color: #0891b2;
-                }
-            """)
+                    btn.setStyleSheet(
+                        "QPushButton { background-color: white; color: #f87171; padding: 5px 30px; border-radius: 15px; font-weight: bold; border: 2px solid #f87171; height: 30px; } QPushButton:hover { background-color: #fef2f2; }")
+            self.staff_accounts_btn.setStyleSheet(
+                "QPushButton { background-color: #f87171; color: white; padding: 5px 30px; border-radius: 15px; font-weight: bold; border: 2px solid #f87171; height: 30px; } QPushButton:hover { background-color: #ef4444; }")
             self.content_stack.setCurrentWidget(self.staff_accounts_page)
             self.current_tab = tab_name
             return
