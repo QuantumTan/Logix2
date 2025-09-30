@@ -296,22 +296,24 @@ class AttendanceDashboard(QWidget):
         self.staff_login.login_successful.connect(self.open_staff_dashboard)
         self.staff_login.show()
 
+
     def show_admin_login(self):
         from screens.login_screens.admin_login import AdminLoginScreen
         self.admin_login = AdminLoginScreen()
         self.admin_login.login_successful.connect(self.open_admin_dashboard)
         self.admin_login.show()
 
+
     def open_staff_dashboard(self):
         from screens.staff_dashboard import StaffDashboard
         self.staff_dashboard = StaffDashboard()
-        self.staff_dashboard.show()
+        self.staff_dashboard.showMaximized()
         self.close()
 
     def open_admin_dashboard(self):
         from screens.admin_dashboard import AdminDashboard
         self.admin_dashboard = AdminDashboard()
-        self.admin_dashboard.show()
+        self.admin_dashboard.showMaximized()
         self.close()
 
     def closeEvent(self, event):
@@ -322,8 +324,8 @@ class AttendanceDashboard(QWidget):
             pass
         super().closeEvent(event)
 
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = AttendanceDashboard()
-    window.show()
-    sys.exit(app.exec())
+# if __name__ == "__main__":
+#     app = QApplication(sys.argv)
+#     window = AttendanceDashboard()
+#     window.showMaximized()
+#     sys.exit(app.exec())

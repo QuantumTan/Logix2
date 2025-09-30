@@ -140,12 +140,25 @@ class AdminDashboard(DashboardBase):
 
     def _make_edit_staff_handler(self, username):
         def handler():
-            staff = get_all_staff()
-            user = next((s for s in staff if s['username'] == username), None)
-            if user:
-                dlg = AddStaffModal(self, initial=user, mode="edit")
-                dlg.staff_added.connect(self._handle_update_staff)
-                dlg.exec()
+            try:
+                from database.db_config import get_db_connection  # Add this import
+                staff = get_all_staff()
+                user = next((s for s in staff if s['username'] == username), None)
+                if user:
+                    # Fetch complete staff data including is_active status
+                    conn = get_db_connection()
+                    if conn:
+                        with conn.cursor() as cursor:
+                            cursor.execute("SELECT * FROM staff_users WHERE username = %s", (username,))
+                            complete_user = cursor.fetchone()
+                        conn.close()
+
+                    if complete_user:
+                        dlg = AddStaffModal(self, initial=complete_user, mode="edit")
+                        dlg.staff_added.connect(self._handle_update_staff)
+                        dlg.exec()
+            except Exception as e:
+                print(f"Error in edit staff handler: {e}")
 
         return handler
 
@@ -177,9 +190,21 @@ class AdminDashboard(DashboardBase):
         self.load_staff_table()
 
     def _handle_update_staff(self, staff):
-        add_or_update_staff(staff['username'], staff['full_name'], staff['role'], staff['position'],
-                            staff.get('password'), mode='update')
-        self.load_staff_table()
+        try:
+            is_active = staff.get('is_active', True)
+            add_or_update_staff(
+                staff['username'],
+                staff['full_name'],
+                staff['role'],
+                staff['position'],
+                staff.get('password'),
+                is_active,  # Add this parameter
+                mode='update'
+            )
+            self.load_staff_table()
+        except Exception as e:
+            print(f"Error updating staff: {e}")
+            QMessageBox.critical(self, "Error", f"Failed to update staff: {str(e)}")
 
     def switch_tab(self, tab_name):
         if tab_name == "staff_accounts":
@@ -234,8 +259,8 @@ class AdminDashboard(DashboardBase):
         self.close()
 
 
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = AdminDashboard()
-    window.show()
-    sys.exit(app.exec())
+# if __name__ == "__main__":
+#     app = QApplication(sys.argv)
+#     window = AdminDashboard()
+#     window.showMaximized()
+#     sys.exit(app.exec())

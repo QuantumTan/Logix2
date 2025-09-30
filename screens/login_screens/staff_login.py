@@ -185,8 +185,8 @@ class StaffLoginScreen(QWidget):
         else:
             QMessageBox.warning(self, "Login Failed", "Invalid credentials.")
 
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = StaffLoginScreen()
-    window.show()
-    sys.exit(app.exec())
+# if __name__ == "__main__":
+#     app = QApplication(sys.argv)
+#     window = StaffLoginScreen()
+#     window.show()
+#     sys.exit(app.exec())

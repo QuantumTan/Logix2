@@ -46,13 +46,16 @@ class AddStaffModal(QDialog):
 
         row2 = QHBoxLayout()
         self._role = self._labeled_lineedit("Role", placeholder="Staff")
+        self._role[1].setText("Staff")  # Set fixed text
+        self._role[1].setReadOnly(True)  # Make it non-editable
         self._position = self._labeled_lineedit("Position", placeholder="e.g. HR Officer")
         row2.addLayout(self._role[0])
         row2.addSpacing(14)
         row2.addLayout(self._position[0])
 
         row3 = QHBoxLayout()
-        self._password = self._labeled_lineedit("Password", placeholder="Enter password" if self.mode == "add" else "Leave blank to keep current")
+        self._password = self._labeled_lineedit("Password",
+                                                placeholder="Enter password" if self.mode == "add" else "Leave blank to keep current")
         self._password[1].setEchoMode(QLineEdit.EchoMode.Password)
         row3.addLayout(self._password[0])
         row3.addStretch()
@@ -67,9 +70,11 @@ class AddStaffModal(QDialog):
         actions = QHBoxLayout()
         actions.addStretch()
         cancel = QPushButton("Cancel")
-        cancel.setStyleSheet("QPushButton{background:#fca5a5;color:white;padding:10px 14px;border-radius:10px;font-weight:bold}")
+        cancel.setStyleSheet(
+            "QPushButton{background:#fca5a5;color:white;padding:10px 14px;border-radius:10px;font-weight:bold}")
         add = QPushButton("Save" if self.mode == "edit" else "Add Staff")
-        add.setStyleSheet("QPushButton{background:#10b981;color:white;padding:10px 14px;border-radius:10px;font-weight:bold}")
+        add.setStyleSheet(
+            "QPushButton{background:#10b981;color:white;padding:10px 14px;border-radius:10px;font-weight:bold}")
         cancel.clicked.connect(self.reject)
         add.clicked.connect(self._submit)
         actions.addWidget(cancel)

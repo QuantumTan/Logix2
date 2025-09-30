@@ -22,7 +22,7 @@ def main():
 
         # Show the main employee dashboard
         window = AttendanceDashboard()
-        window.show()
+        window.showMaximized()
 
         # Run the application
         sys.exit(app.exec())

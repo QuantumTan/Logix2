@@ -53,11 +53,11 @@ class StaffDashboard(DashboardBase):
     def handle_logout(self):
         from .employee_dashboard import AttendanceDashboard
         self.main_dashboard = AttendanceDashboard()
-        self.main_dashboard.show()
+        self.main_dashboard.showMaximized()
         self.close()
 
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = StaffDashboard()
-    window.show()
-    sys.exit(app.exec())
+# if __name__ == "__main__":
+#     app = QApplication(sys.argv)
+#     window = StaffDashboard()
+#     window.showMaximized()
+#     sys.exit(app.exec())

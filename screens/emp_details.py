@@ -146,7 +146,7 @@ class EmployeeDetailsModal(QDialog):
         )
         hours_card = self.create_stat_card(
             "Working Hours",
-            f"{self.employee_data.get('hours', 168)}h",
+            f"{self.employee_data.get('hours', 0)}h",
             "This month",
             "#dbeafe",
             "#2563eb"
@@ -179,9 +179,9 @@ class EmployeeDetailsModal(QDialog):
         perf_title.setStyleSheet("color: #166534; margin-bottom: 15px;")
 
         metrics_layout = QVBoxLayout()
-        attendance_row = self.create_metric_row("Attendance Rate", f"{self.employee_data.get('attendance_rate', 90)}%")
-        hours_row = self.create_metric_row("Average Daily Hours", f"{self.employee_data.get('avg_hours', 7.9)} h")
-        status_row = self.create_metric_row("Status", self.employee_data.get("status", "Good"))
+        attendance_row = self.create_metric_row("Attendance Rate", f"{self.employee_data.get('attendance_rate', 0)}%")
+        hours_row = self.create_metric_row("Average Daily Hours", f"{self.employee_data.get('avg_hours', 0)} h")
+        status_row = self.create_metric_row("Status", self.employee_data.get("status", "na"))
         metrics_layout.addLayout(attendance_row)
         metrics_layout.addLayout(hours_row)
         metrics_layout.addLayout(status_row)
