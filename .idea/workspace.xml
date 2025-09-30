@@ -4,12 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="424a9e44-a74b-4f9d-8f5e-32cb529758ff" name="Changes" comment="Add core screens and database setup for staff/admin login, employee management, and attendance&#10;&#10;- Implement PyQt6 UI screens: admin/staff login, staff dashboard, add/edit employee/staff modals, change password modal, employee details modal&#10;- Add database setup and config scripts for MySQL (db_setup.py, db_config.py)&#10;- Integrate authentication and employee management logic&#10;- Update workspace.xml for new assets and modules">
+    <list default="true" id="424a9e44-a74b-4f9d-8f5e-32cb529758ff" name="Changes" comment="Refine dashboard UI styles and update employee details placeholders&#10;&#10;- Standardize button styles and active/inactive tab highlighting across dashboards&#10;- Adjust window geometry for admin and employee dashboards&#10;- Update employee details modal to use sample placeholders and transparent borders&#10;- Improve code formatting and minor comments for clarity&#10;- Update workspace.xml for recent changes">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/screens/admin_dashboard.py" beforeDir="false" afterPath="$PROJECT_DIR$/screens/admin_dashboard.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/screens/base_dashboard.py" beforeDir="false" afterPath="$PROJECT_DIR$/screens/base_dashboard.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/screens/emp_details.py" beforeDir="false" afterPath="$PROJECT_DIR$/screens/emp_details.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/screens/employee_dashboard.py" beforeDir="false" afterPath="$PROJECT_DIR$/screens/employee_dashboard.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -131,7 +128,8 @@
       <workItem from="1759122019814" duration="136000" />
       <workItem from="1759124295736" duration="1912000" />
       <workItem from="1759127610093" duration="300000" />
-      <workItem from="1759137837944" duration="4499000" />
+      <workItem from="1759137837944" duration="8987000" />
+      <workItem from="1759187897977" duration="4030000" />
     </task>
     <task id="LOCAL-00001" summary="Add core screens and database setup for staff/admin login, employee management, and attendance&#10;&#10;- Implement PyQt6 UI screens: admin/staff login, staff dashboard, add/edit employee/staff modals, change password modal, employee details modal&#10;- Add database setup and config scripts for MySQL (db_setup.py, db_config.py)&#10;- Integrate authentication and employee management logic&#10;- Update workspace.xml for new assets and modules">
       <option name="closed" value="true" />
@@ -141,7 +139,15 @@
       <option name="project" value="LOCAL" />
       <updated>1759110332529</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="Refine dashboard UI styles and update employee details placeholders&#10;&#10;- Standardize button styles and active/inactive tab highlighting across dashboards&#10;- Adjust window geometry for admin and employee dashboards&#10;- Update employee details modal to use sample placeholders and transparent borders&#10;- Improve code formatting and minor comments for clarity&#10;- Update workspace.xml for recent changes">
+      <option name="closed" value="true" />
+      <created>1759143074156</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1759143074156</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -149,10 +155,11 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Add core screens and database setup for staff/admin login, employee management, and attendance&#10;&#10;- Implement PyQt6 UI screens: admin/staff login, staff dashboard, add/edit employee/staff modals, change password modal, employee details modal&#10;- Add database setup and config scripts for MySQL (db_setup.py, db_config.py)&#10;- Integrate authentication and employee management logic&#10;- Update workspace.xml for new assets and modules" />
-    <option name="LAST_COMMIT_MESSAGE" value="Add core screens and database setup for staff/admin login, employee management, and attendance&#10;&#10;- Implement PyQt6 UI screens: admin/staff login, staff dashboard, add/edit employee/staff modals, change password modal, employee details modal&#10;- Add database setup and config scripts for MySQL (db_setup.py, db_config.py)&#10;- Integrate authentication and employee management logic&#10;- Update workspace.xml for new assets and modules" />
+    <MESSAGE value="Refine dashboard UI styles and update employee details placeholders&#10;&#10;- Standardize button styles and active/inactive tab highlighting across dashboards&#10;- Adjust window geometry for admin and employee dashboards&#10;- Update employee details modal to use sample placeholders and transparent borders&#10;- Improve code formatting and minor comments for clarity&#10;- Update workspace.xml for recent changes" />
+    <option name="LAST_COMMIT_MESSAGE" value="Refine dashboard UI styles and update employee details placeholders&#10;&#10;- Standardize button styles and active/inactive tab highlighting across dashboards&#10;- Adjust window geometry for admin and employee dashboards&#10;- Update employee details modal to use sample placeholders and transparent borders&#10;- Improve code formatting and minor comments for clarity&#10;- Update workspace.xml for recent changes" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/Logix$base_dashboard.coverage" NAME="base_dashboard Coverage Results" MODIFIED="1759057641814" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/screens" />
-    <SUITE FILE_PATH="coverage/Logix$main.coverage" NAME="main Coverage Results" MODIFIED="1759142740369" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/Logix$main.coverage" NAME="main Coverage Results" MODIFIED="1759195780385" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
 </project>

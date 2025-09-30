@@ -698,34 +698,112 @@ class DashboardBase(QWidget):
         return labels, present, late
 
     def export_report_csv(self):
-        labels, present, late = self.get_report_data(self.report_period)
-        path, _ = QFileDialog.getSaveFileName(self, "Export CSV", f"attendance_report_{self.report_period}.csv", "CSV Files (*.csv)")
+        from PyQt6.QtCore import QDate
+
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export CSV",
+            f"attendance_report_{self.report_period}.csv",
+            "CSV Files (*.csv)"
+        )
         if not path:
             return
+
+        today = QDate.currentDate()
+
+        # Determine period label
+        if self.report_period == "daily":
+            period_label = today.toString("yyyy-MM-dd")  # 2025-09-30
+        elif self.report_period == "weekly":
+            start = today.addDays(-7)
+            period_label = f"{start.toString('yyyy-MM-dd')} to {today.toString('yyyy-MM-dd')}"
+        elif self.report_period == "monthly":
+            period_label = today.toString("MMMM yyyy")  # September 2025
+        elif self.report_period == "yearly":
+            period_label = today.toString("yyyy")  # 2025
+        else:
+            period_label = today.toString("yyyy-MM-dd")
+
+        # Write CSV
         with open(path, "w", encoding="utf-8") as f:
-            f.write("Department,Present,Late,Total\n")
-            for l, p, lt in zip(labels, present, late):
-                f.write(f"{l},{p},{lt},{p + lt}\n")
+            f.write("Period,Department,Total Employees,Present,Late,Absent\n")
+            for d in get_department_attendance(self.report_period):
+                f.write(
+                    f"{period_label},{d['department']},{d['total_employees']},{d['present']},{d['late']},{d['absent']}\n"
+                )
+
         QMessageBox.information(self, "Export Successful", f"Report exported to {path}")
 
     def export_report_pdf(self):
-        if not self.reports_chart:
-            QMessageBox.warning(self, "Export Failed", "Reports chart is not available.")
-            return
-        path, _ = QFileDialog.getSaveFileName(self, "Export PDF", f"attendance_report_{self.report_period}.pdf", "PDF Files (*.pdf)")
+        from PyQt6.QtGui import QPdfWriter, QPainter, QFont, QTextDocument
+        from PyQt6.QtCore import QDate, QSizeF
+        from PyQt6.QtGui import QPageSize, QPageLayout
+
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export PDF",
+            f"attendance_report_{self.report_period}.pdf",
+            "PDF Files (*.pdf)"
+        )
         if not path:
             return
-        pix = self.reports_chart.grab()
+
+        # Get report data
+        data = get_department_attendance(self.report_period)
+
+        # Period label (Month/Year/Daily)
+        today = QDate.currentDate()
+        if self.report_period == "monthly":
+            period_label = today.toString("MMMM yyyy")  # e.g. September 2025
+        elif self.report_period == "yearly":
+            period_label = today.toString("yyyy")  # e.g. 2025
+        else:
+            period_label = today.toString("MMMM d, yyyy")
+
+        # Build HTML report
+        html = f"""
+        <h2 style="text-align:center;">{self.report_period.capitalize()} Attendance Report – {period_label}</h2>
+        <br>
+        <table border="1" cellspacing="0" cellpadding="40" width="100%">
+            <thead>
+                <tr style="background-color:#f3f4f6;">
+                    <th align="left">Department</th>
+                    <th align="center">Total Employees</th>
+                    <th align="center">Present</th>
+                    <th align="center">Late</th>
+                    <th align="center">Absent</th>
+                </tr>
+            </thead>
+            <tbody>
+        """
+        for d in data:
+            html += f"""
+                <tr>
+                    <td>{d['department']}</td>
+                    <td align="center">{d['total_employees']}</td>
+                    <td align="center">{d['present']}</td>
+                    <td align="center">{d['late']}</td>
+                    <td align="center">{d['absent']}</td>
+                </tr>
+            """
+        html += "</tbody></table>"
+
+        # PDF Writer
         writer = QPdfWriter(path)
         writer.setPageSize(QPageSize(QPageSize.PageSizeId.A4))
         writer.setPageOrientation(QPageLayout.Orientation.Portrait)
+
+        # QTextDocument to render HTML
+        doc = QTextDocument()
+        doc.setDefaultFont(QFont("Inter", 80))
+        doc.setHtml(html)
+
+        # Use QPainter safely
         painter = QPainter(writer)
-        page_rect = writer.pageLayout().paintRectPixels(writer.resolution())
-        scaled = pix.scaled(page_rect.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-        x = (page_rect.width() - scaled.width()) // 2
-        y = (page_rect.height() - scaled.height()) // 2
-        painter.drawPixmap(x, y, scaled)
+        doc.setPageSize(QSizeF(writer.width(), writer.height()))
+        doc.drawContents(painter)
         painter.end()
+
         QMessageBox.information(self, "Export Successful", f"Report exported to {path}")
 
     def _handle_add_employee(self, emp):
