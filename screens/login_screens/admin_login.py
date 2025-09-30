@@ -78,7 +78,7 @@ class AdminLoginScreen(QWidget):
         title_label.setStyleSheet("color: white; background-color: transparent; margin-bottom: 5px;")
 
         subtitle1_label = QLabel("Login to access admin management<br>dashboard")
-        subtitle1_label.setFont(QFont("Inter", 12))
+        subtitle1_label.setFont(QFont("Inter", 11))
         subtitle1_label.setStyleSheet("color: white; background-color: transparent;")
 
         text_layout.addWidget(title_label)
