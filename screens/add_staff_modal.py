@@ -40,6 +40,10 @@ class AddStaffModal(QDialog):
         row1 = QHBoxLayout()
         self._full_name = self._labeled_lineedit("Full Name", placeholder="e.g. Jane Doe")
         self._username = self._labeled_lineedit("Username", placeholder="e.g. jane")
+        # Make username read-only in edit mode
+        if self.mode == "edit":
+            self._username[1].setReadOnly(True)
+            self._username[1].setStyleSheet("QLineEdit{background:#f3f4f6;border:2px solid #e5e7eb;border-radius:10px;padding:6px 10px;color:#6b7280;}")
         row1.addLayout(self._full_name[0])
         row1.addSpacing(14)
         row1.addLayout(self._username[0])
@@ -48,6 +52,7 @@ class AddStaffModal(QDialog):
         self._role = self._labeled_lineedit("Role", placeholder="Staff")
         self._role[1].setText("Staff")  # Set fixed text
         self._role[1].setReadOnly(True)  # Make it non-editable
+        self._role[1].setStyleSheet("QLineEdit{background:#f3f4f6;border:2px solid #e5e7eb;border-radius:10px;padding:6px 10px;color:#6b7280;}")
         self._position = self._labeled_lineedit("Position", placeholder="e.g. HR Officer")
         row2.addLayout(self._role[0])
         row2.addSpacing(14)
@@ -111,13 +116,26 @@ class AddStaffModal(QDialog):
         position = self._position[1].text().strip()
         password = self._password[1].text().strip()
 
-        if not full_name or not username or not role or not position or (self.mode == "add" and not password):
-            # Validation
+        if not full_name or not username or not role or not position:
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.warning(self, "Validation Error", "Please fill in all required fields.")
             return
 
-        staff = {"username": username, "full_name": full_name, "role": role, "position": position}
+        if self.mode == "add" and not password:
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.warning(self, "Validation Error", "Password is required for new staff.")
+            return
+
+        staff = {
+            "username": username,
+            "full_name": full_name,
+            "role": role,
+            "position": position,
+            "is_active": self.initial.get("is_active", True)  # Preserve is_active status
+        }
         if password:
             staff["password"] = password
+
         self.staff_added.emit(staff)
         self.accept()
 

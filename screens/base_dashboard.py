@@ -3,7 +3,7 @@ import sys
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout,
     QHBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QFrame, QSizePolicy, QStackedWidget,
-    QFileDialog, QMessageBox, QInputDialog, QComboBox
+    QFileDialog, QMessageBox, QInputDialog, QComboBox, QScrollArea, QListWidget, QListWidgetItem
 )
 from PyQt6.QtCore import Qt, QTimer, QTime, QDate
 from PyQt6.QtGui import QFont, QPixmap, QPainter, QPageLayout, QPageSize, QPdfWriter
@@ -52,7 +52,8 @@ class ReportsChartWidget(QWidget):
 
         if MATPLOTLIB_AVAILABLE and self._Figure and self._FigureCanvas:
             try:
-                self.figure = self._Figure(figsize=(10, 6), tight_layout=True)
+                # Remove tight_layout=True and increase figure size to prevent layout warnings
+                self.figure = self._Figure(figsize=(12, 8))
                 self.canvas = self._FigureCanvas(self.figure)
                 layout.addWidget(self.canvas)
                 # Load static data immediately
@@ -75,8 +76,35 @@ class ReportsChartWidget(QWidget):
 
     def load_static_demo_data(self):
         """Load comprehensive static demo data for charts with 2x2 layout"""
-        ##removed because database has been implemented
-        pass
+        try:
+            if not MATPLOTLIB_AVAILABLE or not self.canvas or not self.figure:
+                return
+
+            # Create a simple demo chart to show the chart is working
+            self.figure.clear()
+            ax = self.figure.add_subplot(111)
+
+            # Sample data for demonstration
+            departments = ['IT', 'HR', 'Finance', 'Operations']
+            present = [25, 15, 20, 30]
+            late = [5, 3, 4, 8]
+
+            x = list(range(len(departments)))
+            ax.bar(x, present, color="#10b981", label="Present", alpha=0.8)
+            ax.bar(x, late, bottom=present, color="#f59e0b", label="Late", alpha=0.8)
+            ax.set_xticks(x)
+            ax.set_xticklabels(departments)
+            ax.set_title('Sample Attendance Report', fontweight='bold')
+            ax.set_ylabel('Number of Employees')
+            ax.grid(True, axis='y', linestyle='--', alpha=0.3)
+            ax.legend()
+
+            # Adjust layout manually to prevent tight_layout warnings
+            self.figure.subplots_adjust(left=0.1, bottom=0.15, right=0.9, top=0.9)
+            self.canvas.draw()
+
+        except Exception as e:
+            print(f"Failed to load demo chart data: {e}")
 
     def plot(self, labels: list[str], present: list[int], late: list[int], title: str):
         """Plot method for dynamic data"""
@@ -96,6 +124,9 @@ class ReportsChartWidget(QWidget):
             ax.set_ylabel('Number of Employees')
             ax.grid(True, axis='y', linestyle='--', alpha=0.3)
             ax.legend()
+
+            # Adjust layout manually to prevent tight_layout warnings
+            self.figure.subplots_adjust(left=0.1, bottom=0.15, right=0.9, top=0.9)
             self.canvas.draw()
 
         except Exception as e:
@@ -121,6 +152,8 @@ class DashboardBase(QWidget):
         self.employee_data = {}
         self.attendance_rows: list[dict] = []
         self.load_employee_data()
+        # Enable charts by default; guarded with try/except and internal fallbacks
+        self.enable_charts = True
 
         self.inactive_style = "QPushButton { background-color: white; color: #f87171; padding: 5px 30px; border-radius: 15px; font-weight: bold; border: 2px solid #f87171; height: 30px; } QPushButton:hover { background-color: #fef2f2; }"
         self.active_style = "QPushButton { background-color: #f87171; color: white; padding: 5px 30px; border-radius: 15px; font-weight: bold; border: 2px solid #f87171; height: 30px; } QPushButton:hover { background-color: #ef4444; }"
@@ -278,10 +311,10 @@ class DashboardBase(QWidget):
         self.attendance_refresh_timer.timeout.connect(lambda: [self.refresh_attendance_view(), self.update_stats()])
         self.attendance_refresh_timer.start()
 
-        # Reports tab auto-refresh timer
+        # Reports tab auto-refresh timer - disabled for new reports screen
         self.reports_refresh_timer = QTimer(self)
         self.reports_refresh_timer.setInterval(10000)  # 10 seconds
-        self.reports_refresh_timer.timeout.connect(lambda: self.update_reports_view(self.period_combo.currentText()))
+        self.reports_refresh_timer.timeout.connect(self.update_reports_view)  # Remove parameter dependency
 
         # Switch to default tab
         self.switch_tab("attendance")
@@ -345,12 +378,12 @@ class DashboardBase(QWidget):
         self.attendance_search.textChanged.connect(self.filter_attendance_table)
         attendance_layout.addWidget(self.attendance_search)
 
+        # Use exact same table setup as employee_dashboard
         self.attendance_table = QTableWidget()
         self.attendance_table.setColumnCount(6)
         self.attendance_table.setHorizontalHeaderLabels(["Employee ID", "Employee Name", "Check In", "Check Out", "Status", "Action"])
         self.attendance_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.attendance_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-
         attendance_layout.addWidget(self.attendance_table)
         self.content_stack.addWidget(self.attendance_page)
 
@@ -377,6 +410,7 @@ class DashboardBase(QWidget):
             self.attendance_table.setItem(r, 2, QTableWidgetItem(data.get('check_in', '--')))
             self.attendance_table.setItem(r, 3, QTableWidgetItem(data.get('check_out', '--')))
             self.attendance_table.setItem(r, 4, QTableWidgetItem(data.get('status', '')))
+
             view_btn = QPushButton("VIEW")
             view_btn.setStyleSheet("background-color: #f87171; color: white; padding: 5px; border-radius: 6px; margin: 2px;")
             emp_id = data.get('employee_id', '')
@@ -434,10 +468,11 @@ class DashboardBase(QWidget):
         ])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.load_employee_table()
-
         emp_layout.addWidget(self.table)
         self.content_stack.addWidget(self.employee_management_page)
+
+        # Load employee data into table
+        self.load_employee_table()
 
     def load_employee_table(self):
         self.load_employee_data()
@@ -510,10 +545,14 @@ class DashboardBase(QWidget):
     def setup_reports_page(self):
         if hasattr(self, 'reports_page') and self.reports_page is not None:
             return
-        self.reports_page = QWidget()
-        reports_layout = QVBoxLayout(self.reports_page)
 
-        # Period selector
+        # Create a main widget that will contain everything
+        self.reports_main_widget = QWidget()
+        reports_layout = QVBoxLayout(self.reports_main_widget)
+        reports_layout.setSpacing(20)
+        reports_layout.setContentsMargins(20, 20, 20, 20)
+
+        # Period selector and export buttons
         period_layout = QHBoxLayout()
         self.report_period = "daily"
         self.period_combo = QComboBox()
@@ -526,144 +565,219 @@ class DashboardBase(QWidget):
         # Export buttons
         csv_btn = QPushButton("Export CSV")
         csv_btn.clicked.connect(self.export_report_csv)
+        csv_btn.setFixedHeight(35)
+        csv_btn.setStyleSheet("QPushButton { background-color: #10b981; color: white; padding: 8px 16px; border-radius: 6px; font-weight: bold; }")
+
         pdf_btn = QPushButton("Export PDF")
         pdf_btn.clicked.connect(self.export_report_pdf)
+        pdf_btn.setFixedHeight(35)
+        pdf_btn.setStyleSheet("QPushButton { background-color: #ef4444; color: white; padding: 8px 16px; border-radius: 6px; font-weight: bold; }")
+
         period_layout.addWidget(csv_btn)
         period_layout.addWidget(pdf_btn)
-
         reports_layout.addLayout(period_layout)
 
         # Chart header
         self.reports_chart_header = QLabel("📊 Daily Attendance Report")
-        self.reports_chart_header.setFont(QFont("Inter", 16, QFont.Weight.Bold))
+        self.reports_chart_header.setFont(QFont("Inter", 18, QFont.Weight.Bold))
         self.reports_chart_header.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.reports_chart_header.setStyleSheet("color: #1f2937; margin: 10px 0; padding: 10px; background: #f9fafb; border-radius: 8px;")
         reports_layout.addWidget(self.reports_chart_header)
 
-        # --- Cards and Chart Layout ---
-        main_hbox = QHBoxLayout()
+        # Chart container with fixed height and proper sizing
+        chart_container = QFrame()
+        chart_container.setFrameStyle(QFrame.Shape.Box)
+        chart_container.setStyleSheet("QFrame { border: 2px solid #e5e7eb; border-radius: 8px; background: white; }")
+        chart_container.setMinimumHeight(500)  # Ensure minimum height for chart
+        chart_container.setMaximumHeight(600)  # Prevent it from getting too large
 
-        # Chart placeholder (left)
+        chart_layout = QVBoxLayout(chart_container)
+        chart_layout.setContentsMargins(10, 10, 10, 10)
+
+        # Initialize chart or placeholder
         self.reports_chart = None
-        self._reports_placeholder = QLabel("Open the Reports tab to load charts.")
+        self._reports_placeholder = QLabel("📊 Chart will load when you switch to Reports tab")
         self._reports_placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._reports_placeholder.setStyleSheet(
-            "color:#6b7280; font-size: 14px; padding: 40px; background: white; border-radius: 8px;")
-        main_hbox.addWidget(self._reports_placeholder, stretch=1)
+        self._reports_placeholder.setStyleSheet("color: #6b7280; font-size: 16px; padding: 40px;")
+        chart_layout.addWidget(self._reports_placeholder)
 
-        # Cards VBox (right)
-        self.cards_vbox = QVBoxLayout()
-        self.cards_vbox.setSpacing(20)
+        reports_layout.addWidget(chart_container)
+        # Keep reference for later chart insertion
+        self.chart_container_layout = chart_layout
 
-        # Attendance Rate Card
-        self.attendance_rate_card = QWidget()
-        ar_vbox = QVBoxLayout(self.attendance_rate_card)
-        ar_vbox.setContentsMargins(16, 12, 16, 12)
-        ar_vbox.setSpacing(8)
-        ar_label = QLabel("Attendance Rate")
-        ar_label.setFont(QFont("Inter", 12))
-        ar_label.setStyleSheet("color: #374151; margin-bottom: 4px;")
-        ar_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
-        self.attendance_rate_value = QLabel("--%")
-        self.attendance_rate_value.setFont(QFont("Inter", 18, QFont.Weight.Bold))
-        self.attendance_rate_value.setStyleSheet("color: #1f2937;")
-        self.attendance_rate_value.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom)
-        ar_vbox.addWidget(ar_label)
-        ar_vbox.addStretch(1)
-        ar_vbox.addWidget(self.attendance_rate_value)
-        self.attendance_rate_card.setStyleSheet("background:#f1f5f9; border-radius:10px;")
-        self.cards_vbox.addWidget(self.attendance_rate_card)
+        # Individual Employee Working Hours Section
+        indiv_header = QLabel("👤 Individual Employee Working Hours")
+        indiv_header.setFont(QFont("Inter", 16, QFont.Weight.Bold))
+        indiv_header.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        indiv_header.setStyleSheet("color: #1f2937; margin-top: 20px; margin-bottom: 10px; padding: 10px; background: #f9fafb; border-radius: 8px;")
+        reports_layout.addWidget(indiv_header)
 
-        # Employees Present Card
-        self.total_present_card = QWidget()
-        tp_vbox = QVBoxLayout(self.total_present_card)
-        tp_vbox.setContentsMargins(16, 12, 16, 12)
-        tp_vbox.setSpacing(8)
-        present_label = QLabel("Employees Present")
-        present_label.setFont(QFont("Inter", 12))
-        present_label.setStyleSheet("color: #10b981; margin-bottom: 4px;")
-        present_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
-        self.total_present_value = QLabel("--")
-        self.total_present_value.setFont(QFont("Inter", 18, QFont.Weight.Bold))
-        self.total_present_value.setStyleSheet("color: #10b981;")
-        self.total_present_value.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom)
-        tp_vbox.addWidget(present_label)
-        tp_vbox.addStretch(1)
-        tp_vbox.addWidget(self.total_present_value)
-        self.total_present_card.setStyleSheet("background:#dcfce7; border-radius:10px;")
-        self.cards_vbox.addWidget(self.total_present_card)
+        # Employee search and view controls
+        indiv_controls = QHBoxLayout()
+        self.indiv_search_input = QLineEdit()
+        self.indiv_search_input.setPlaceholderText("🔍 Search employee by ID or name...")
+        self.indiv_search_input.setFixedHeight(40)
+        self.indiv_search_input.setStyleSheet("""
+            QLineEdit {
+                background-color: white;
+                border: 2px solid #e5e7eb;
+                border-radius: 8px;
+                padding: 8px 12px;
+                font-size: 14px;
+                color: #374151;
+            }
+            QLineEdit:focus {
+                border-color: #3b82f6;
+            }
+        """)
+        self.indiv_search_input.textChanged.connect(self._on_indiv_search_text_changed)
 
-        # Late Arrivals Card
-        self.total_late_card = QWidget()
-        tl_vbox = QVBoxLayout(self.total_late_card)
-        tl_vbox.setContentsMargins(16, 12, 16, 12)
-        tl_vbox.setSpacing(8)
-        late_label = QLabel("Late Arrivals")
-        late_label.setFont(QFont("Inter", 12))
-        late_label.setStyleSheet("color: #f59e0b; margin-bottom: 4px;")
-        late_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
-        self.total_late_value = QLabel("--")
-        self.total_late_value.setFont(QFont("Inter", 18, QFont.Weight.Bold))
-        self.total_late_value.setStyleSheet("color: #f59e0b;")
-        self.total_late_value.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom)
-        tl_vbox.addWidget(late_label)
-        tl_vbox.addStretch(1)
-        tl_vbox.addWidget(self.total_late_value)
-        self.total_late_card.setStyleSheet("background:#fef3c7; border-radius:10px;")
-        self.cards_vbox.addWidget(self.total_late_card)
+        indiv_controls.addWidget(QLabel("Employee:"))
+        indiv_controls.addWidget(self.indiv_search_input, stretch=1)
 
-        main_hbox.addLayout(self.cards_vbox, stretch=0)
+        indiv_controls.addSpacing(20)
+        indiv_controls.addWidget(QLabel("View:"))
+        self.indiv_view_combo = QComboBox()
+        self.indiv_view_combo.addItems(["Monthly", "Yearly"])
+        self.indiv_view_combo.setFixedHeight(40)
+        self.indiv_view_combo.currentTextChanged.connect(self._on_indiv_selection_changed)
+        indiv_controls.addWidget(self.indiv_view_combo)
 
-        reports_layout.addLayout(main_hbox)
-        self.content_stack.addWidget(self.reports_page)
-        # Do not call update_reports_view here; wait until tab is shown
+        reports_layout.addLayout(indiv_controls)
 
-    def _ensure_reports_chart(self):
-        if self.reports_chart is None:
-            layout = self.reports_page.layout().itemAt(2).layout()  # main_hbox
-            if self._reports_placeholder is not None:
-                layout.removeWidget(self._reports_placeholder)
-                self._reports_placeholder.deleteLater()
-                self._reports_placeholder = None
-            self.reports_chart = ReportsChartWidget()
-            layout.insertWidget(0, self.reports_chart, stretch=1)
+        # Debounced search setup
+        self.indiv_search_timer = QTimer(self)
+        self.indiv_search_timer.setSingleShot(True)
+        self.indiv_search_timer.setInterval(300)
+        self.indiv_search_timer.timeout.connect(self._perform_indiv_search)
 
-    def update_reports_view(self, period_text):
-        periods = {"Daily": "daily", "Weekly": "weekly", "Monthly": "monthly", "Yearly": "yearly"}
-        self.report_period = periods.get(period_text, "daily")
-        labels, present, late = self.get_report_data(self.report_period)
-        title = f"{period_text} Attendance Report"
+        # Search results list
+        self.indiv_results = QListWidget()
+        self.indiv_results.setMaximumHeight(120)
+        self.indiv_results.setStyleSheet("""
+            QListWidget {
+                border: 1px solid #e5e7eb;
+                border-radius: 6px;
+                background: white;
+                padding: 5px;
+            }
+            QListWidget::item {
+                padding: 8px;
+                border-bottom: 1px solid #f3f4f6;
+            }
+            QListWidget::item:hover {
+                background: #f3f4f6;
+            }
+            QListWidget::item:selected {
+                background: #3b82f6;
+                color: white;
+            }
+        """)
+        self.indiv_results.itemClicked.connect(self._on_indiv_result_clicked)
+        reports_layout.addWidget(self.indiv_results)
 
-        # --- Fetch stats for cards ---
-        stats = get_today_stats()
-        total_present = stats.get('present', 0)
-        total_late = stats.get('late', 0)
-        total = total_present + total_late + stats.get('absent', 0)
-        attendance_rate = int((total_present / total * 100) if total > 0 else 0)
+        # Selected employee label
+        self.selected_emp_label = QLabel("No employee selected - showing all employees")
+        self.selected_emp_label.setStyleSheet("color: #374151; font-weight: bold; padding: 8px; background: #f9fafb; border-radius: 6px;")
+        reports_layout.addWidget(self.selected_emp_label)
 
-        self.attendance_rate_value.setText(f"{attendance_rate}%")
-        self.total_present_value.setText(str(total_present))
-        self.total_late_value.setText(str(total_late))
+        # Individual export buttons
+        indiv_export_layout = QHBoxLayout()
+        indiv_export_layout.addStretch()
 
-        # Update chart if available
-        if self.reports_chart and MATPLOTLIB_AVAILABLE and getattr(self.reports_chart, 'canvas', None):
-            try:
-                self.reports_chart.figure.clear()
-                ax = self.reports_chart.figure.add_subplot(111)
-                import numpy as np
-                x = np.arange(len(labels))
-                width = 0.35
-                ax.bar(x - width/2, present, width, label='Present', color='#10b981')
-                ax.bar(x + width/2, late, width, label='Late', color='#f59e0b')
-                ax.set_xticks(x)
-                ax.set_xticklabels(labels)
-                ax.set_ylabel('Employees')
-                ax.set_title(title, fontweight='bold')
-                ax.legend(loc='upper right')
-                self.reports_chart.canvas.draw()
-            except Exception as e:
-                print(f"Failed to update reports chart: {e}")
+        indiv_csv_btn = QPushButton("Export Individual Hours CSV")
+        indiv_csv_btn.clicked.connect(self.export_individual_hours_csv)
+        indiv_csv_btn.setFixedHeight(35)
+        indiv_csv_btn.setStyleSheet("QPushButton { background-color: #10b981; color: white; padding: 8px 16px; border-radius: 6px; font-weight: bold; }")
 
-        self.reports_chart_header.setText(f"📊 {title}")
+        indiv_pdf_btn = QPushButton("Export Individual Hours PDF")
+        indiv_pdf_btn.clicked.connect(self.export_individual_hours_pdf)
+        indiv_pdf_btn.setFixedHeight(35)
+        indiv_pdf_btn.setStyleSheet("QPushButton { background-color: #ef4444; color: white; padding: 8px 16px; border-radius: 6px; font-weight: bold; }")
+
+        indiv_export_layout.addWidget(indiv_csv_btn)
+        indiv_export_layout.addWidget(indiv_pdf_btn)
+        reports_layout.addLayout(indiv_export_layout)
+
+        # Employee hours table in a scrollable container
+        table_container = QFrame()
+        table_container.setFrameStyle(QFrame.Shape.Box)
+        table_container.setStyleSheet("QFrame { border: 2px solid #e5e7eb; border-radius: 8px; background: white; }")
+        table_container.setMinimumHeight(300)
+
+        table_layout = QVBoxLayout(table_container)
+        table_layout.setContentsMargins(10, 10, 10, 10)
+
+        self.indiv_table = QTableWidget()
+        self.indiv_table.setColumnCount(2)
+        self.indiv_table.setHorizontalHeaderLabels(["Period", "Total Hours"])
+        self.indiv_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.indiv_table.setMinimumHeight(250)
+        self.indiv_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.indiv_table.setSelectionMode(QTableWidget.SelectionMode.NoSelection)
+        self.indiv_table.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.indiv_table.setAlternatingRowColors(True)
+        self.indiv_table.setStyleSheet("""
+            QTableWidget {
+                gridline-color: #e5e7eb;
+                background: white;
+                selection-background-color: transparent;
+                selection-color: inherit;
+            }
+            QTableWidget::item {
+                border: none;
+                padding: 8px;
+            }
+            QTableWidget::item:selected {
+                background-color: transparent;
+                color: inherit;
+            }
+            QHeaderView::section {
+                background: #f3f4f6;
+                padding: 8px;
+                border: 1px solid #e5e7eb;
+                font-weight: bold;
+            }
+        """)
+
+        table_layout.addWidget(self.indiv_table)
+        reports_layout.addWidget(table_container)
+
+        # Summary label
+        self.indiv_summary_label = QLabel("Total: 0 hours")
+        self.indiv_summary_label.setStyleSheet("color: #1f2937; font-size: 14px; font-weight: bold; padding: 10px; background: #f0f9ff; border-radius: 6px;")
+        reports_layout.addWidget(self.indiv_summary_label)
+
+        # Create scroll area for the entire reports page
+        self.reports_scroll = QScrollArea()
+        self.reports_scroll.setWidgetResizable(True)
+        self.reports_scroll.setWidget(self.reports_main_widget)
+        self.reports_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.reports_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.reports_scroll.setStyleSheet("""
+            QScrollArea {
+                border: none;
+                background: #f9fafb;
+            }
+            QScrollBar:vertical {
+                background: #f3f4f6;
+                width: 12px;
+                border-radius: 6px;
+            }
+            QScrollBar::handle:vertical {
+                background: #9ca3af;
+                border-radius: 6px;
+                min-height: 20px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #6b7280;
+            }
+        """)
+
+        self.content_stack.addWidget(self.reports_scroll)
+
+        # Internal state for selected employee
+        self._selected_emp_id = None
 
     def switch_tab(self, tab_name):
         if tab_name == self.current_tab:
@@ -685,20 +799,183 @@ class DashboardBase(QWidget):
             self.content_stack.setCurrentWidget(self.employee_management_page)
             self.reports_refresh_timer.stop()
         elif tab_name == "reports":
-            # Ensure chart is created only when entering the Reports tab
-            self._ensure_reports_chart()
-            self.content_stack.setCurrentWidget(self.reports_page)
-            # Update reports chart once the widget exists
+            # Create chart lazily and safely
+            try:
+                self._ensure_reports_chart()
+            except Exception as e:
+                print(f"Chart init error: {e}")
+            self.content_stack.setCurrentWidget(self.reports_scroll)
             self.update_reports_view("Daily")
             self.reports_refresh_timer.start()
+
         self.current_tab = tab_name
 
+    def _ensure_reports_chart(self):
+        """Replace the placeholder with a chart widget lazily."""
+        try:
+            if self.reports_chart is None and hasattr(self, 'chart_container_layout'):
+                if getattr(self, '_reports_placeholder', None) is not None:
+                    self.chart_container_layout.removeWidget(self._reports_placeholder)
+                    self._reports_placeholder.deleteLater()
+                    self._reports_placeholder = None
+
+                # Create the chart widget with proper sizing
+                self.reports_chart = ReportsChartWidget()
+                self.reports_chart.setMinimumHeight(450)
+                self.reports_chart.setMaximumHeight(550)
+                self.chart_container_layout.addWidget(self.reports_chart)
+
+                print("Chart widget created and added to layout")
+        except Exception as e:
+            print(f"Failed to create reports chart: {e}")
+            self.reports_chart = None
+
+    def _on_indiv_search_text_changed(self, _text: str):
+        # Debounce frequent queries
+        if self.indiv_search_timer.isActive():
+            self.indiv_search_timer.stop()
+        self.indiv_search_timer.start()
+
+    def _perform_indiv_search(self):
+        try:
+            from database.db_queries import search_employees
+            q = self.indiv_search_input.text().strip()
+            self.indiv_results.clear()
+            if not q:
+                return
+            rows = search_employees(q, limit=50) or []
+            for r in rows:
+                item = QListWidgetItem(f"{r['full_name']} ({r['employee_id']})")
+                item.setData(Qt.ItemDataRole.UserRole, r['employee_id'])
+                item.setData(Qt.ItemDataRole.UserRole + 1, r['full_name'])
+                self.indiv_results.addItem(item)
+        except Exception as e:
+            print(f"Employee search failed: {e}")
+
+    def _on_indiv_result_clicked(self, item: QListWidgetItem):
+        try:
+            emp_id = item.data(Qt.ItemDataRole.UserRole)
+            full_name = item.data(Qt.ItemDataRole.UserRole + 1)
+            self._selected_emp_id = emp_id
+            self.selected_emp_label.setText(f"Selected: {full_name} – {emp_id}")
+            self._update_indiv_table()
+        except Exception as e:
+            print(f"Selecting employee failed: {e}")
+
+    def _on_indiv_selection_changed(self, *_):
+        # Refresh individual table when Monthly/Yearly view changes
+        self._update_indiv_table()
+
+    def _update_indiv_table(self):
+        emp_id = getattr(self, '_selected_emp_id', None)
+        view = self.indiv_view_combo.currentText() if self.indiv_view_combo.count() else "Monthly"
+        if not emp_id:
+            # Default: show all employees aggregated for the selected period
+            try:
+                from database.db_queries import get_all_employees_hours_for_month, get_all_employees_hours_for_year
+                if view == "Monthly":
+                    today = QDate.currentDate()
+                    year = today.year()
+                    month = today.month()
+                    rows = get_all_employees_hours_for_month(year, month) or []
+                    self.indiv_table.setColumnCount(2)
+                    self.indiv_table.setHorizontalHeaderLabels(["Employee", f"Total Hours ({today.toString('MMMM yyyy')})"])
+                    self.indiv_table.setRowCount(len(rows))
+                    total = 0.0
+                    for i, r in enumerate(rows):
+                        name = r.get('full_name', '')
+                        hrs = float(r.get('hours', 0) or 0)
+                        total += hrs
+                        self.indiv_table.setItem(i, 0, QTableWidgetItem(name))
+                        self.indiv_table.setItem(i, 1, QTableWidgetItem(str(round(hrs, 2))))
+                    self.indiv_summary_label.setText(f"Employees: {len(rows)}  •  Total Hours: {round(total, 2)}")
+                    self.selected_emp_label.setText("Selected: All employees – Monthly view")
+                else:
+                    today = QDate.currentDate()
+                    year = today.year()
+                    rows = get_all_employees_hours_for_year(year) or []
+                    self.indiv_table.setColumnCount(2)
+                    self.indiv_table.setHorizontalHeaderLabels(["Employee", f"Total Hours ({year})"])
+                    self.indiv_table.setRowCount(len(rows))
+                    total = 0.0
+                    for i, r in enumerate(rows):
+                        name = r.get('full_name', '')
+                        hrs = float(r.get('hours', 0) or 0)
+                        total += hrs
+                        self.indiv_table.setItem(i, 0, QTableWidgetItem(name))
+                        self.indiv_table.setItem(i, 1, QTableWidgetItem(str(round(hrs, 2))))
+                    self.indiv_summary_label.setText(f"Employees: {len(rows)}  •  Total Hours: {round(total, 2)}")
+                    self.selected_emp_label.setText("Selected: All employees – Yearly view")
+            except Exception as e:
+                print(f"Failed to load default employee hours: {e}")
+                self.indiv_table.setRowCount(0)
+                self.indiv_summary_label.setText("Total: 0 hours")
+            return
+
+        # Individual employee view
+        try:
+            from database.db_queries import get_employee_monthly_hours, get_employee_yearly_hours
+            total = 0
+            if view == "Monthly":
+                import datetime, calendar
+                year = datetime.date.today().year
+                rows = get_employee_monthly_hours(emp_id, year) or []
+                months = {int(r['month']): float(r['hours'] or 0) for r in rows}
+                self.indiv_table.setRowCount(12)
+                for m in range(1, 13):
+                    h = round(months.get(m, 0), 2)
+                    total += h
+                    self.indiv_table.setItem(m-1, 0, QTableWidgetItem(calendar.month_name[m]))
+                    self.indiv_table.setItem(m-1, 1, QTableWidgetItem(str(h)))
+                self.indiv_summary_label.setText(f"Yearly Total Hours ({year}): {round(total, 2)}")
+            else:
+                rows = get_employee_yearly_hours(emp_id) or []
+                self.indiv_table.setRowCount(len(rows))
+                for i, r in enumerate(rows):
+                    year = r['year']
+                    hrs = float(r['hours'] or 0)
+                    total += hrs
+                    self.indiv_table.setItem(i, 0, QTableWidgetItem(str(year)))
+                    self.indiv_table.setItem(i, 1, QTableWidgetItem(str(round(hrs, 2))))
+                self.indiv_summary_label.setText(f"All Years Total: {round(total, 2)} hours")
+        except Exception as e:
+            print(f"Failed to update individual table: {e}")
+
+    def update_reports_view(self, period_text=None):
+        if period_text is None:
+            period_text = "Daily"
+
+        periods = {"Daily": "daily", "Weekly": "weekly", "Monthly": "monthly", "Yearly": "yearly"}
+        self.report_period = periods.get(period_text, "daily")
+        labels, present, late = self.get_report_data(self.report_period)
+        title = f"{period_text} Attendance Report"
+
+        # Update chart if available
+        if hasattr(self, 'reports_chart') and self.reports_chart and MATPLOTLIB_AVAILABLE and getattr(self.reports_chart, 'canvas', None):
+            try:
+                self.reports_chart.plot(labels, present, late, title)
+            except Exception as e:
+                print(f"Failed to update reports chart: {e}")
+
+        # Update individual summary (keep it fresh when switching periods)
+        try:
+            self._update_indiv_table()
+        except Exception as e:
+            print(f"Failed to update individual summary: {e}")
+
+        if hasattr(self, 'reports_chart_header'):
+            self.reports_chart_header.setText(f"📊 {title}")
+
     def get_report_data(self, period):
-        data = get_department_attendance(period)
-        labels = [d['department'] for d in data]
-        present = [d['present'] for d in data]
-        late = [d['late'] for d in data]
-        return labels, present, late
+        try:
+            data = get_department_attendance(period)
+            labels = [d['department'] for d in data]
+            present = [d['present'] for d in data]
+            late = [d['late'] for d in data]
+            return labels, present, late
+        except Exception as e:
+            print(f"Failed to get report data: {e}")
+            return [], [], []
 
     def export_report_csv(self):
         from PyQt6.QtCore import QDate
@@ -716,14 +993,14 @@ class DashboardBase(QWidget):
 
         # Determine period label
         if self.report_period == "daily":
-            period_label = today.toString("yyyy-MM-dd")  # 2025-09-30
+            period_label = today.toString("yyyy-MM-dd")
         elif self.report_period == "weekly":
             start = today.addDays(-7)
             period_label = f"{start.toString('yyyy-MM-dd')} to {today.toString('yyyy-MM-dd')}"
         elif self.report_period == "monthly":
-            period_label = today.toString("MMMM yyyy")  # September 2025
+            period_label = today.toString("MMMM yyyy")
         elif self.report_period == "yearly":
-            period_label = today.toString("yyyy")  # 2025
+            period_label = today.toString("yyyy")
         else:
             period_label = today.toString("yyyy-MM-dd")
 
@@ -757,9 +1034,9 @@ class DashboardBase(QWidget):
         # Period label (Month/Year/Daily)
         today = QDate.currentDate()
         if self.report_period == "monthly":
-            period_label = today.toString("MMMM yyyy")  # e.g. September 2025
+            period_label = today.toString("MMMM yyyy")
         elif self.report_period == "yearly":
-            period_label = today.toString("yyyy")  # e.g. 2025
+            period_label = today.toString("yyyy")
         else:
             period_label = today.toString("MMMM d, yyyy")
 
@@ -798,7 +1075,7 @@ class DashboardBase(QWidget):
 
         # QTextDocument to render HTML
         doc = QTextDocument()
-        doc.setDefaultFont(QFont("Inter", 80))
+        doc.setDefaultFont(QFont("Inter", 10))
         doc.setHtml(html)
 
         # Use QPainter safely
@@ -809,60 +1086,162 @@ class DashboardBase(QWidget):
 
         QMessageBox.information(self, "Export Successful", f"Report exported to {path}")
 
-    def _handle_add_employee(self, emp):
-        image_dir = 'assets/employees'
-        os.makedirs(image_dir, exist_ok=True)
-        if emp.get('image_path'):
-            ext = os.path.splitext(emp['image_path'])[1]
-            new_path = os.path.join(image_dir, f"{emp['id']}{ext}")
-            shutil.copy(emp['image_path'], new_path)
-            emp['image_path'] = new_path
-        add_employee(emp['id'], emp['name'], emp['position'], emp['department'], emp['image_path'])
-        self.load_employee_data()
-        self.load_employee_table()
+    def export_individual_hours_csv(self):
+        """Export individual working hours table to CSV"""
+        from PyQt6.QtCore import QDate
 
-    def _handle_update_employee(self, emp):
-        image_dir = 'assets/employees'
-        os.makedirs(image_dir, exist_ok=True)
-        if emp.get('image_path') and not emp['image_path'].startswith(image_dir):
-            ext = os.path.splitext(emp['image_path'])[1]
-            new_path = os.path.join(image_dir, f"{emp['id']}{ext}")
-            shutil.copy(emp['image_path'], new_path)
-            emp['image_path'] = new_path
-        update_employee(emp['id'], emp['name'], emp['position'], emp['department'], emp['image_path'])
-        self.load_employee_data()
-        self.load_employee_table()
+        # Get current data from the individual table
+        row_count = self.indiv_table.rowCount()
+        column_count = self.indiv_table.columnCount()
 
-    def closeEvent(self, event):
-        try:
-            if hasattr(self, 'reports_chart') and self.reports_chart:
-                self.reports_chart.close()
-            if hasattr(self, 'timer'):
-                self.timer.stop()
-            if hasattr(self, 'attendance_refresh_timer'):
-                self.attendance_refresh_timer.stop()
-            if hasattr(self, 'reports_refresh_timer'):
-                self.reports_refresh_timer.stop()
-        except Exception as e:
-            print(f"Error during DashboardBase close: {e}")
-        super().closeEvent(event)
+        if row_count == 0:
+            QMessageBox.warning(self, "No Data", "No individual hours data available to export.")
+            return
 
-    # fetches data frm db
+        # Get selected employee info for filename
+        emp_id = getattr(self, '_selected_emp_id', None)
+        view = self.indiv_view_combo.currentText() if self.indiv_view_combo.count() else "Monthly"
+
+        if emp_id:
+            filename = f"individual_hours_{emp_id}_{view.lower()}.csv"
+        else:
+            filename = f"all_employees_hours_{view.lower()}.csv"
+
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Individual Hours CSV",
+            filename,
+            "CSV Files (*.csv)"
+        )
+        if not path:
+            return
+
+        # Write CSV
+        with open(path, "w", encoding="utf-8") as f:
+            # Write headers
+            headers = []
+            for col in range(column_count):
+                header_item = self.indiv_table.horizontalHeaderItem(col)
+                headers.append(header_item.text() if header_item else f"Column {col + 1}")
+            f.write(",".join(headers) + "\n")
+
+            # Write data rows
+            for row in range(row_count):
+                row_data = []
+                for col in range(column_count):
+                    item = self.indiv_table.item(row, col)
+                    row_data.append(item.text() if item else "")
+                f.write(",".join(row_data) + "\n")
+
+        QMessageBox.information(self, "Export Successful", f"Individual hours exported to {path}")
+
+    def export_individual_hours_pdf(self):
+        """Export individual working hours table to PDF"""
+        from PyQt6.QtGui import QPdfWriter, QPainter, QFont, QTextDocument
+        from PyQt6.QtCore import QDate, QSizeF
+        from PyQt6.QtGui import QPageSize, QPageLayout
+
+        # Get current data from the individual table
+        row_count = self.indiv_table.rowCount()
+        column_count = self.indiv_table.columnCount()
+
+        if row_count == 0:
+            QMessageBox.warning(self, "No Data", "No individual hours data available to export.")
+            return
+
+        # Get selected employee info for filename and title
+        emp_id = getattr(self, '_selected_emp_id', None)
+        view = self.indiv_view_combo.currentText() if self.indiv_view_combo.count() else "Monthly"
+
+        if emp_id:
+            filename = f"individual_hours_{emp_id}_{view.lower()}.pdf"
+            title = f"Individual Working Hours Report - {self.selected_emp_label.text()}"
+        else:
+            filename = f"all_employees_hours_{view.lower()}.pdf"
+            title = f"All Employees Working Hours Report - {view} View"
+
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Individual Hours PDF",
+            filename,
+            "PDF Files (*.pdf)"
+        )
+        if not path:
+            return
+
+        today = QDate.currentDate()
+        period_label = today.toString("MMMM d, yyyy")
+
+        # Build HTML report
+        html = f"""
+        <h2 style="text-align:center;">{title}</h2>
+        <p style="text-align:center;">Generated on: {period_label}</p>
+        <br>
+        <table border="1" cellspacing="0" cellpadding="10" width="100%">
+            <thead>
+                <tr style="background-color:#f3f4f6;">
+        """
+
+        # Add table headers
+        for col in range(column_count):
+            header_item = self.indiv_table.horizontalHeaderItem(col)
+            header_text = header_item.text() if header_item else f"Column {col + 1}"
+            html += f'<th align="center">{header_text}</th>'
+
+        html += """
+                </tr>
+            </thead>
+            <tbody>
+        """
+
+        # Add table data
+        for row in range(row_count):
+            html += "<tr>"
+            for col in range(column_count):
+                item = self.indiv_table.item(row, col)
+                cell_text = item.text() if item else ""
+                alignment = "left" if col == 0 else "center"
+                html += f'<td align="{alignment}">{cell_text}</td>'
+            html += "</tr>"
+
+        html += "</tbody></table>"
+
+        # Add summary from the summary label
+        summary_text = self.indiv_summary_label.text()
+        html += f'<br><p style="text-align:center; font-weight:bold;">{summary_text}</p>'
+
+        # PDF Writer
+        writer = QPdfWriter(path)
+        writer.setPageSize(QPageSize(QPageSize.PageSizeId.A4))
+        writer.setPageOrientation(QPageLayout.Orientation.Portrait)
+
+        # QTextDocument to render HTML
+        doc = QTextDocument()
+        doc.setDefaultFont(QFont("Inter", 10))
+        doc.setHtml(html)
+
+        # Use QPainter safely
+        painter = QPainter(writer)
+        doc.setPageSize(QSizeF(writer.width(), writer.height()))
+        doc.drawContents(painter)
+        painter.end()
+
+        QMessageBox.information(self, "Export Successful", f"Individual hours exported to {path}")
+
     def load_employee_data(self):
-        """Load employee data from database"""
+        """Load employee data from database into self.employee_data dict."""
         try:
-            from database.db_queries import get_all_employees
-            employees = get_all_employees()
+            employees = get_all_employees() or []
             self.employee_data = {}
             for emp in employees:
                 self.employee_data[emp['employee_id']] = {
                     'id': emp['employee_id'],
                     'name': emp['full_name'],
-                    'position': emp['position'],
-                    'department': emp['department'],
+                    'position': emp.get('position', ''),
+                    'department': emp.get('department', ''),
                     'image_path': emp.get('image_path'),
                     'leave_credits': emp.get('leave_credits', 15),
-                    'absences': 0
+                    'absences': 0,
                 }
         except Exception as e:
             print(f"Error loading employee data: {e}")

@@ -1,7 +1,7 @@
 # screens/staff_dashboard.py
 import sys
 from PyQt6.QtWidgets import QWidget, QMessageBox, QApplication, QInputDialog, QHBoxLayout, QVBoxLayout, QFrame, QLabel, \
-    QTableWidgetItem, QPushButton
+    QTableWidgetItem, QPushButton, QTableWidget, QHeaderView, QLineEdit
 from PyQt6.QtGui import QFont
 from PyQt6.QtCore import Qt
 
@@ -23,7 +23,6 @@ class StaffDashboard(DashboardBase):
         self.add_emp_btn.clicked.connect(self.show_add_employee_modal)
 
         self.switch_tab("attendance")
-
 
 
     # overrides the base_dashboard method to delete button in the employee management table
@@ -80,6 +79,20 @@ class StaffDashboard(DashboardBase):
         modal = AddEmployeeModal(self, initial=initial, mode="edit")
         modal.employee_added.connect(self._handle_update_employee)
         modal.exec()
+
+    def _handle_update_employee(self, emp):
+        import os
+        import shutil
+        image_dir = 'assets/employees'
+        os.makedirs(image_dir, exist_ok=True)
+        if emp.get('image_path') and not emp['image_path'].startswith(image_dir):
+            ext = os.path.splitext(emp['image_path'])[1]
+            new_path = os.path.join(image_dir, f"{emp['id']}{ext}")
+            shutil.copy(emp['image_path'], new_path)
+            emp['image_path'] = new_path
+        update_employee(emp['id'], emp['name'], emp['position'], emp['department'], emp['image_path'])
+        self.load_employee_data()
+        self.load_employee_table()
 
     # def handle_delete_employee(self, emp_id):
     #     QMessageBox.warning(self, "Permission Denied", "Staff cannot delete employees!")

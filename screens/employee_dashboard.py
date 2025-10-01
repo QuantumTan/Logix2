@@ -1,4 +1,3 @@
-
 import sys
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout,
@@ -234,6 +233,10 @@ class AttendanceDashboard(QWidget):
 
     def load_attendance_data(self):
         attendance = get_today_attendance()
+        self.table.setColumnCount(6)  # Remove the extra column for Total Hours
+        self.table.setHorizontalHeaderLabels([
+            'Employee ID', 'Full Name', 'Check In', 'Check Out', 'Status', 'Actions'
+        ])
         self.table.setRowCount(len(attendance))
         for r, data in enumerate(attendance):
             self.table.setItem(r, 0, QTableWidgetItem(data['employee_id']))

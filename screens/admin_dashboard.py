@@ -145,17 +145,13 @@ class AdminDashboard(DashboardBase):
     def _make_edit_staff_handler(self, username):
         def handler():
             try:
-                from database.db_config import get_db_connection  # Add this import
-                staff = get_all_staff()
-                user = next((s for s in staff if s['username'] == username), None)
-                if user:
-                    # Fetch complete staff data including is_active status
-                    conn = get_db_connection()
-                    if conn:
-                        with conn.cursor() as cursor:
-                            cursor.execute("SELECT * FROM staff_users WHERE username = %s", (username,))
-                            complete_user = cursor.fetchone()
-                        conn.close()
+                from database.db_config import get_db_connection
+                conn = get_db_connection()
+                if conn:
+                    with conn.cursor() as cursor:
+                        cursor.execute("SELECT * FROM staff_users WHERE username = %s", (username,))
+                        complete_user = cursor.fetchone()
+                    conn.close()
 
                     if complete_user:
                         dlg = AddStaffModal(self, initial=complete_user, mode="edit")
@@ -163,6 +159,7 @@ class AdminDashboard(DashboardBase):
                         dlg.exec()
             except Exception as e:
                 print(f"Error in edit staff handler: {e}")
+                QMessageBox.critical(self, "Error", f"Failed to load staff data: {str(e)}")
 
         return handler
 
@@ -173,11 +170,20 @@ class AdminDashboard(DashboardBase):
             if user:
                 modal = ChangePasswordModal(self, username=username, full_name=user['full_name'])
                 modal.password_changed.connect(
-                    lambda u, p: add_or_update_staff(u, user['full_name'], user['role'], user['position'], p,
-                                                     mode='update'))
+                    lambda u, p: self._update_staff_password(u, user, p))
                 modal.exec()
 
         return handler
+
+    def _update_staff_password(self, username, user, new_password):
+        """Handle staff password update with proper error handling"""
+        try:
+            add_or_update_staff(username, user['full_name'], user['role'], user['position'], new_password, True, mode='update')
+            QMessageBox.information(self, "Success", f"Password updated successfully for {user['full_name']}")
+            self.load_staff_table()
+        except Exception as e:
+            print(f"Error updating password: {e}")
+            QMessageBox.critical(self, "Error", f"Failed to update password: {str(e)}")
 
     def _make_delete_staff_handler(self, username):
         def handler():
@@ -189,22 +195,28 @@ class AdminDashboard(DashboardBase):
         return handler
 
     def _handle_add_staff(self, staff):
-        add_or_update_staff(staff['username'], staff['full_name'], staff['role'], staff['position'], staff['password'],
-                            mode='add')
-        self.load_staff_table()
+        try:
+            add_or_update_staff(staff['username'], staff['full_name'], staff['role'], staff['position'], staff['password'], True, mode='add')
+            QMessageBox.information(self, "Success", f"Staff member {staff['full_name']} added successfully!")
+            self.load_staff_table()
+        except Exception as e:
+            print(f"Error adding staff: {e}")
+            QMessageBox.critical(self, "Error", f"Failed to add staff: {str(e)}")
 
     def _handle_update_staff(self, staff):
         try:
-            is_active = staff.get('is_active', True)
+            # Convert is_active from database integer (1/0) to boolean, then back to what the function expects
+            is_active = bool(staff.get('is_active', True))
             add_or_update_staff(
                 staff['username'],
                 staff['full_name'],
                 staff['role'],
                 staff['position'],
                 staff.get('password'),
-                is_active,  # Add this parameter
+                is_active,
                 mode='update'
             )
+            QMessageBox.information(self, "Success", f"Staff member {staff['full_name']} updated successfully!")
             self.load_staff_table()
         except Exception as e:
             print(f"Error updating staff: {e}")

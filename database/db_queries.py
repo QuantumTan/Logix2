@@ -186,6 +186,68 @@ def get_employee_details(employee_id, period='month'):
     return {}
 
 
+def get_employee_details_by_date_range(employee_id, start_date, end_date):
+    """Get computed details for an ACTIVE employee within a specific date range."""
+    conn = get_db_connection()
+    if conn:
+        with conn.cursor() as cursor:
+            # Check if employee is active
+            cursor.execute("SELECT leave_credits FROM employees WHERE employee_id = %s AND is_active = TRUE",
+                           (employee_id,))
+            res = cursor.fetchone()
+            if not res:
+                return {}
+            leave_credits = res['leave_credits'] if res else 15
+
+            # Date range filter
+            where_period = "AND date >= %s AND date < %s"
+
+            # Absences
+            cursor.execute(f"""
+                SELECT COUNT(*) as absences FROM attendance_records
+                WHERE employee_id = %s AND status = 'Absent' {where_period}
+            """, (employee_id, start_date, end_date))
+            absences = cursor.fetchone()['absences']
+
+            # Working hours (sum hours)
+            cursor.execute(f"""
+                SELECT SUM(TIMESTAMPDIFF(MINUTE, check_in, IFNULL(check_out, NOW())) / 60.0) as hours
+                FROM attendance_records WHERE employee_id = %s {where_period}
+            """, (employee_id, start_date, end_date))
+            hours = cursor.fetchone()['hours'] or 0
+
+            # Total days, present days
+            cursor.execute(f"""
+                SELECT COUNT(*) as total_days, SUM(CASE WHEN status IN ('Present', 'Late') THEN 1 ELSE 0 END) as present_days
+                FROM attendance_records WHERE employee_id = %s {where_period}
+            """, (employee_id, start_date, end_date))
+            res = cursor.fetchone()
+            total_days = res['total_days'] or 0
+            present_days = res['present_days'] or 0
+            # formulas attendance and average
+            attendance_rate = (present_days / total_days * 100) if total_days > 0 else 0
+            avg_hours = hours / present_days if present_days > 0 else 0
+
+            # Status
+            if attendance_rate > 95:
+                status = 'Excellent'
+            elif attendance_rate > 85:
+                status = 'Good'
+            else:
+                status = 'Needs Improvement'
+
+        conn.close()
+        return {
+            'absences': absences,
+            'hours': round(hours),
+            'leave_credits': leave_credits,
+            'attendance_rate': round(attendance_rate),
+            'avg_hours': round(avg_hours, 1),
+            'status': status
+        }
+    return {}
+
+
 def get_employee_by_id(employee_id):
     """Fetch basic employee info by ID (only active)."""
     conn = get_db_connection()
@@ -295,6 +357,149 @@ def get_today_stats(for_date=None):
     return {'present': 0, 'late': 0, 'absent': 0}
 
 
+def get_employee_monthly_hours(employee_id: str, year: int):
+    """Return a list of {month:int, hours:float} for the given employee and year.
+    Hours is the sum of time between check_in and check_out (or NOW() if still checked in).
+    """
+    conn = get_db_connection()
+    if not conn:
+        return []
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT MONTH(date) AS month,
+                       ROUND(SUM(TIMESTAMPDIFF(MINUTE, check_in, IFNULL(check_out, NOW())))/60.0, 2) AS hours
+                FROM attendance_records
+                WHERE employee_id = %s AND YEAR(date) = %s
+                GROUP BY MONTH(date)
+                ORDER BY month
+                """,
+                (employee_id, year)
+            )
+            rows = cursor.fetchall() or []
+            # Normalize None to 0
+            for r in rows:
+                r['hours'] = r['hours'] or 0
+            return rows
+    finally:
+        conn.close()
+
+
+def get_employee_yearly_hours(employee_id: str):
+    """Return a list of {year:int, hours:float} across all years for the employee."""
+    conn = get_db_connection()
+    if not conn:
+        return []
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT YEAR(date) AS year,
+                       ROUND(SUM(TIMESTAMPDIFF(MINUTE, check_in, IFNULL(check_out, NOW())))/60.0, 2) AS hours
+                FROM attendance_records
+                WHERE employee_id = %s
+                GROUP BY YEAR(date)
+                ORDER BY year
+                """,
+                (employee_id,)
+            )
+            rows = cursor.fetchall() or []
+            for r in rows:
+                r['hours'] = r['hours'] or 0
+            return rows
+    finally:
+        conn.close()
+
+
+def search_employees(query: str, limit: int = 50):
+    """Search ACTIVE employees by ID or full name, limited for performance."""
+    q = (query or '').strip()
+    if not q:
+        return []
+    conn = get_db_connection()
+    if not conn:
+        return []
+    try:
+        with conn.cursor() as cursor:
+            like = f"%{q}%"
+            cursor.execute(
+                """
+                SELECT employee_id, full_name
+                FROM employees
+                WHERE is_active = TRUE
+                  AND (employee_id LIKE %s OR full_name LIKE %s)
+                ORDER BY full_name ASC
+                LIMIT %s
+                """,
+                (like, like, int(max(1, min(limit, 500))))
+            )
+            return cursor.fetchall() or []
+    finally:
+        conn.close()
+
+
+def get_all_employees_hours_for_month(year: int, month: int):
+    """Return [{employee_id, full_name, hours}] for all ACTIVE employees for a given year-month."""
+    conn = get_db_connection()
+    if not conn:
+        return []
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT e.employee_id,
+                       e.full_name,
+                       ROUND(COALESCE(SUM(TIMESTAMPDIFF(MINUTE, a.check_in, IFNULL(a.check_out, NOW())))/60.0, 0), 2) AS hours
+                FROM employees e
+                LEFT JOIN attendance_records a
+                       ON e.employee_id = a.employee_id
+                      AND YEAR(a.date) = %s
+                      AND MONTH(a.date) = %s
+                WHERE e.is_active = TRUE
+                GROUP BY e.employee_id, e.full_name
+                ORDER BY e.full_name ASC
+                """,
+                (year, month)
+            )
+            rows = cursor.fetchall() or []
+            for r in rows:
+                r['hours'] = r['hours'] or 0
+            return rows
+    finally:
+        conn.close()
+
+
+def get_all_employees_hours_for_year(year: int):
+    """Return [{employee_id, full_name, hours}] for all ACTIVE employees for a given year."""
+    conn = get_db_connection()
+    if not conn:
+        return []
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT e.employee_id,
+                       e.full_name,
+                       ROUND(COALESCE(SUM(TIMESTAMPDIFF(MINUTE, a.check_in, IFNULL(a.check_out, NOW())))/60.0, 0), 2) AS hours
+                FROM employees e
+                LEFT JOIN attendance_records a
+                       ON e.employee_id = a.employee_id
+                      AND YEAR(a.date) = %s
+                WHERE e.is_active = TRUE
+                GROUP BY e.employee_id, e.full_name
+                ORDER BY e.full_name ASC
+                """,
+                (year,)
+            )
+            rows = cursor.fetchall() or []
+            for r in rows:
+                r['hours'] = r['hours'] or 0
+            return rows
+    finally:
+        conn.close()
+
+
 # ============================================
 # AUTHENTICATION FUNCTIONS (with soft delete)
 # ============================================
@@ -323,12 +528,15 @@ def add_or_update_staff(username, full_name, role, position, password=None, is_a
     conn = get_db_connection()
     if conn:
         with conn.cursor() as cursor:
+            # Convert is_active to proper boolean/int for database
+            is_active_val = 1 if is_active else 0
+
             if mode == 'add':
                 password_hash = hash_password(password)
                 cursor.execute("""
                                INSERT INTO staff_users (username, full_name, role, position, password_hash, is_active)
                                VALUES (%s, %s, %s, %s, %s, %s)
-                               """, (username, full_name, role, position, password_hash, is_active))
+                               """, (username, full_name, role, position, password_hash, is_active_val))
             else:
                 if password:
                     password_hash = hash_password(password)
@@ -340,7 +548,7 @@ def add_or_update_staff(username, full_name, role, position, password=None, is_a
                                        password_hash = %s,
                                        is_active     = %s
                                    WHERE username = %s
-                                   """, (full_name, role, position, password_hash, is_active, username))
+                                   """, (full_name, role, position, password_hash, is_active_val, username))
                 else:
                     cursor.execute("""
                                    UPDATE staff_users
@@ -349,7 +557,7 @@ def add_or_update_staff(username, full_name, role, position, password=None, is_a
                                        position  = %s,
                                        is_active = %s
                                    WHERE username = %s
-                                   """, (full_name, role, position, is_active, username))
+                                   """, (full_name, role, position, is_active_val, username))
             conn.commit()
         conn.close()
 
@@ -379,3 +587,52 @@ def delete_staff(username):
             cursor.execute("UPDATE staff_users SET is_active = FALSE WHERE username = %s", (username,))
             conn.commit()
         conn.close()
+
+
+def get_employee_monthly_attendance_details(employee_id, start_date, end_date):
+    """Get detailed monthly attendance records for an employee within a specific date range."""
+    conn = get_db_connection()
+    if conn:
+        with conn.cursor() as cursor:
+            # Check if employee is active
+            cursor.execute("SELECT full_name FROM employees WHERE employee_id = %s AND is_active = TRUE",
+                           (employee_id,))
+            res = cursor.fetchone()
+            if not res:
+                return []
+
+            # Get detailed attendance records for the date range
+            cursor.execute("""
+                SELECT 
+                    date,
+                    check_in,
+                    check_out,
+                    status,
+                    CASE 
+                        WHEN check_in IS NOT NULL AND check_out IS NOT NULL THEN
+                            ROUND(TIMESTAMPDIFF(MINUTE, check_in, check_out) / 60.0, 2)
+                        WHEN check_in IS NOT NULL AND check_out IS NULL THEN
+                            ROUND(TIMESTAMPDIFF(MINUTE, check_in, NOW()) / 60.0, 2)
+                        ELSE 0
+                    END as daily_hours
+                FROM attendance_records 
+                WHERE employee_id = %s AND date >= %s AND date < %s
+                ORDER BY date ASC
+            """, (employee_id, start_date, end_date))
+
+            records = cursor.fetchall() or []
+
+            # Format the records for display
+            formatted_records = []
+            for record in records:
+                formatted_records.append({
+                    'date': record['date'].strftime('%Y-%m-%d') if record['date'] else '',
+                    'check_in': record['check_in'].strftime('%H:%M') if record['check_in'] else '--',
+                    'check_out': record['check_out'].strftime('%H:%M') if record['check_out'] else '--',
+                    'status': record['status'] or 'Absent',
+                    'daily_hours': record['daily_hours'] or 0
+                })
+
+        conn.close()
+        return formatted_records
+    return []
