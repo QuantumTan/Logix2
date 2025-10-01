@@ -830,7 +830,8 @@ class DashboardBase(QWidget):
             except Exception as e:
                 print(f"Chart init error: {e}")
             self.content_stack.setCurrentWidget(self.reports_scroll)
-            self.update_reports_view("Daily")
+            # Do not force reset to Daily; refresh using current selection/state
+            self.update_reports_view()
             self.reports_refresh_timer.start()
 
         self.current_tab = tab_name
@@ -967,15 +968,29 @@ class DashboardBase(QWidget):
             print(f"Failed to update individual table: {e}")
 
     def update_reports_view(self, period_text=None):
-        if period_text is None:
-            period_text = "Daily"
-
+        # Map between display text and internal period code
         periods = {"Daily": "daily", "Weekly": "weekly", "Monthly": "monthly", "Yearly": "yearly"}
-        self.report_period = periods.get(period_text, "daily")
-        labels, present, late, absent = self.get_report_data(self.report_period)
-        title = f"{period_text} Attendance Report"
+        display_for = {v: k for k, v in periods.items()}
 
-        # Update chart if available
+        # If the user selected a new period via the combo, update internal state.
+        if isinstance(period_text, str) and period_text:
+            self.report_period = periods.get(period_text, getattr(self, 'report_period', 'daily'))
+        else:
+            # No explicit period passed (e.g., auto-refresh) -> keep current selection/state.
+            if not getattr(self, 'report_period', None):
+                # Initialize from combo if available, else default to daily
+                if hasattr(self, 'period_combo') and self.period_combo and self.period_combo.count():
+                    self.report_period = periods.get(self.period_combo.currentText(), 'daily')
+                else:
+                    self.report_period = 'daily'
+
+        # Build title from current internal state
+        display_text = display_for.get(self.report_period, 'Daily')
+        title = f"{display_text} Attendance Report"
+
+        # Fetch and plot
+        labels, present, late, absent = self.get_report_data(self.report_period)
+
         if hasattr(self, 'reports_chart') and self.reports_chart and MATPLOTLIB_AVAILABLE and getattr(self.reports_chart, 'canvas', None):
             try:
                 self.reports_chart.plot(labels, present, late, absent, title)
