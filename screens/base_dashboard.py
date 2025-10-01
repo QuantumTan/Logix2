@@ -88,10 +88,19 @@ class ReportsChartWidget(QWidget):
             departments = ['IT', 'HR', 'Finance', 'Operations']
             present = [25, 15, 20, 30]
             late = [5, 3, 4, 8]
+            absent = [2, 4, 1, 3]
 
+            # Grouped bar chart positions
             x = list(range(len(departments)))
-            ax.bar(x, present, color="#10b981", label="Present", alpha=0.8)
-            ax.bar(x, late, bottom=present, color="#f59e0b", label="Late", alpha=0.8)
+            width = 0.25
+            x_present = [i - width for i in x]
+            x_late = x
+            x_absent = [i + width for i in x]
+
+            ax.bar(x_present, present, width=width, color="#10b981", label="Present", alpha=0.9)
+            ax.bar(x_late, late, width=width, color="#f59e0b", label="Late", alpha=0.9)
+            ax.bar(x_absent, absent, width=width, color="#ef4444", label="Absent", alpha=0.9)
+
             ax.set_xticks(x)
             ax.set_xticklabels(departments)
             ax.set_title('Sample Attendance Report', fontweight='bold')
@@ -106,27 +115,43 @@ class ReportsChartWidget(QWidget):
         except Exception as e:
             print(f"Failed to load demo chart data: {e}")
 
-    def plot(self, labels: list[str], present: list[int], late: list[int], title: str):
-        """Plot method for dynamic data"""
+    def plot(self, labels: list[str], present: list[int], late: list[int], absent: list[int], title: str):
+        """Plot method for dynamic data with grouped bars for Present, Late, Absent"""
         try:
             if not MATPLOTLIB_AVAILABLE or not self.canvas or not self.figure:
                 return
 
+            # Normalize lengths to avoid index errors
+            n = min(len(labels), len(present), len(late), len(absent))
+            labels = labels[:n]
+            present = [int(p or 0) for p in present[:n]]
+            late = [int(l or 0) for l in late[:n]]
+            absent = [int(a or 0) for a in absent[:n]]
+
             # Clear and create single plot
             self.figure.clear()
             ax = self.figure.add_subplot(111)
+
             x = list(range(len(labels)))
-            ax.bar(x, present, color="#10b981", label="Present", alpha=0.8)
-            ax.bar(x, late, bottom=present, color="#f59e0b", label="Late", alpha=0.8)
+            width = 0.25 if len(labels) > 0 else 0.25
+
+            x_present = [i - width for i in x]
+            x_late = x
+            x_absent = [i + width for i in x]
+
+            ax.bar(x_present, present, width=width, color="#10b981", label="Present", alpha=0.9)
+            ax.bar(x_late, late, width=width, color="#f59e0b", label="Late", alpha=0.9)
+            ax.bar(x_absent, absent, width=width, color="#ef4444", label="Absent", alpha=0.9)
+
             ax.set_xticks(x)
-            ax.set_xticklabels(labels)
+            ax.set_xticklabels(labels, rotation=0 if len(labels) <= 6 else 20, ha='right')
             ax.set_title(title, fontweight='bold')
             ax.set_ylabel('Number of Employees')
             ax.grid(True, axis='y', linestyle='--', alpha=0.3)
             ax.legend()
 
             # Adjust layout manually to prevent tight_layout warnings
-            self.figure.subplots_adjust(left=0.1, bottom=0.15, right=0.9, top=0.9)
+            self.figure.subplots_adjust(left=0.1, bottom=0.2 if len(labels) > 6 else 0.15, right=0.95, top=0.9)
             self.canvas.draw()
 
         except Exception as e:
@@ -947,13 +972,13 @@ class DashboardBase(QWidget):
 
         periods = {"Daily": "daily", "Weekly": "weekly", "Monthly": "monthly", "Yearly": "yearly"}
         self.report_period = periods.get(period_text, "daily")
-        labels, present, late = self.get_report_data(self.report_period)
+        labels, present, late, absent = self.get_report_data(self.report_period)
         title = f"{period_text} Attendance Report"
 
         # Update chart if available
         if hasattr(self, 'reports_chart') and self.reports_chart and MATPLOTLIB_AVAILABLE and getattr(self.reports_chart, 'canvas', None):
             try:
-                self.reports_chart.plot(labels, present, late, title)
+                self.reports_chart.plot(labels, present, late, absent, title)
             except Exception as e:
                 print(f"Failed to update reports chart: {e}")
 
@@ -970,12 +995,18 @@ class DashboardBase(QWidget):
         try:
             data = get_department_attendance(period)
             labels = [d['department'] for d in data]
-            present = [d['present'] for d in data]
-            late = [d['late'] for d in data]
-            return labels, present, late
+            present = [d.get('present', 0) for d in data]
+            late = [d.get('late', 0) for d in data]
+            # Prefer DB 'absent' when present; for daily period, derive if missing/zero
+            if period == 'daily':
+                total = [d.get('total_employees', 0) for d in data]
+                absent = [max(0, (total[i] or 0) - (int(present[i] or 0) + int(late[i] or 0))) for i in range(len(data))]
+            else:
+                absent = [d.get('absent', 0) for d in data]
+            return labels, present, late, absent
         except Exception as e:
             print(f"Failed to get report data: {e}")
-            return [], [], []
+            return [], [], [], []
 
     def export_report_csv(self):
         from PyQt6.QtCore import QDate
@@ -1200,11 +1231,13 @@ class DashboardBase(QWidget):
             for col in range(column_count):
                 item = self.indiv_table.item(row, col)
                 cell_text = item.text() if item else ""
-                alignment = "left" if col == 0 else "center"
-                html += f'<td align="{alignment}">{cell_text}</td>'
+                html += f'<td align="center">{cell_text}</td>'
             html += "</tr>"
 
-        html += "</tbody></table>"
+        html += """
+            </tbody>
+        </table>
+        """
 
         # Add summary from the summary label
         summary_text = self.indiv_summary_label.text()

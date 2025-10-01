@@ -262,6 +262,9 @@ class AttendanceDashboard(QWidget):
         if employee_check_in(emp_id):
             QMessageBox.information(self, "Success", "Checked in successfully!")
             self.load_attendance_data()
+            # Clear input and focus for next entry
+            self.checkin_id.clear()
+            self.checkin_id.setFocus()
         else:
             QMessageBox.warning(self, "Error", "Invalid ID, already checked in, or error.")
 
@@ -273,6 +276,9 @@ class AttendanceDashboard(QWidget):
         if employee_check_out(emp_id):
             QMessageBox.information(self, "Success", "Checked out successfully!")
             self.load_attendance_data()
+            # Clear input and focus for next entry
+            self.checkin_id.clear()
+            self.checkin_id.setFocus()
         else:
             QMessageBox.warning(self, "Error", "Not checked in today or error.")
 
