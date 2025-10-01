@@ -101,13 +101,17 @@ class AdminDashboard(DashboardBase):
             edit_btn = QPushButton("Edit")
             edit_btn.setStyleSheet(
                 "QPushButton{background:#60a5fa;color:white;padding:4px 8px;border-radius:6px;font-size:10px;}")
+            edit_btn.setFixedWidth(100)
 
             change_pwd_btn = QPushButton("🔑 Password")
             change_pwd_btn.setStyleSheet(
                 "QPushButton{background:#f59e0b;color:white;padding:4px 8px;border-radius:6px;font-size:10px;}")
+            change_pwd_btn.setFixedWidth(100)
+
             delete_btn = QPushButton("Delete")
             delete_btn.setStyleSheet(
                 "QPushButton{background:#ef4444;color:white;padding:4px 8px;border-radius:6px;font-size:10px;}")
+            delete_btn.setFixedWidth(100)
 
             username = s['username']
             edit_btn.clicked.connect(self._make_edit_staff_handler(username))
@@ -255,7 +259,7 @@ class AdminDashboard(DashboardBase):
     def handle_logout(self):
         from .employee_dashboard import AttendanceDashboard
         self.main_dashboard = AttendanceDashboard()
-        self.main_dashboard.show()
+        self.main_dashboard.showMaximized()
         self.close()
 
 

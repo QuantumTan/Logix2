@@ -1,6 +1,7 @@
 # screens/staff_dashboard.py
 import sys
-from PyQt6.QtWidgets import QWidget, QMessageBox, QApplication, QInputDialog, QHBoxLayout, QVBoxLayout, QFrame, QLabel
+from PyQt6.QtWidgets import QWidget, QMessageBox, QApplication, QInputDialog, QHBoxLayout, QVBoxLayout, QFrame, QLabel, \
+    QTableWidgetItem, QPushButton
 from PyQt6.QtGui import QFont
 from PyQt6.QtCore import Qt
 
@@ -23,6 +24,47 @@ class StaffDashboard(DashboardBase):
 
         self.switch_tab("attendance")
 
+
+
+    # overrides the base_dashboard method to delete button in the employee management table
+    def load_employee_table(self):
+        self.load_employee_data()
+        self.table.setRowCount(len(self.employee_data))
+        keys = list(self.employee_data.keys())
+        for row in range(len(keys)):
+            emp_id = keys[row]
+            emp = self.employee_data[emp_id]
+            self.table.setItem(row, 0, QTableWidgetItem(emp['id']))
+            self.table.setItem(row, 1, QTableWidgetItem(emp['name']))
+            self.table.setItem(row, 2, QTableWidgetItem(emp['position']))
+            self.table.setItem(row, 3, QTableWidgetItem(emp['department']))
+            self.table.setItem(row, 4, QTableWidgetItem(str(emp['absences'])))
+            self.table.setItem(row, 5, QTableWidgetItem(str(emp['leave_credits'])))
+
+            # Action cell (no Delete button)
+            action_widget = QWidget()
+            h = QHBoxLayout(action_widget)
+            h.setContentsMargins(0, 0, 0, 0)
+            h.setSpacing(4)
+
+            edit_btn = QPushButton("Edit")
+            edit_btn.setStyleSheet(
+                "QPushButton{background:#60a5fa;color:white;padding:4px 8px;border-radius:6px;font-size:10px;}")
+            edit_btn.setFixedWidth(130)
+
+            leave_btn = QPushButton("Edit Leave")
+            leave_btn.setStyleSheet(
+                "QPushButton{background:#f59e0b;color:white;padding:4px 8px;border-radius:6px;font-size:10px;}")
+            leave_btn.setFixedWidth(130)
+
+            edit_btn.clicked.connect(lambda checked, eid=emp_id: self.handle_edit_employee(eid))
+            leave_btn.clicked.connect(lambda checked, eid=emp_id: self.handle_edit_leave(eid))
+
+            h.addWidget(edit_btn)
+            h.addWidget(leave_btn)
+            h.addStretch()
+            self.table.setCellWidget(row, 6, action_widget)
+
     def show_employee_details(self, emp_id):
         if emp_id in self.employee_data:
             dlg = EmployeeDetailsModal(self.employee_data[emp_id], self)
@@ -39,8 +81,8 @@ class StaffDashboard(DashboardBase):
         modal.employee_added.connect(self._handle_update_employee)
         modal.exec()
 
-    def handle_delete_employee(self, emp_id):
-        QMessageBox.warning(self, "Permission Denied", "Staff cannot delete employees!")
+    # def handle_delete_employee(self, emp_id):
+    #     QMessageBox.warning(self, "Permission Denied", "Staff cannot delete employees!")
 
     def handle_edit_leave(self, emp_id):
         current = self.employee_data[emp_id]['leave_credits']
