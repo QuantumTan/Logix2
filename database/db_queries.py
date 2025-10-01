@@ -159,10 +159,12 @@ def get_employee_details(employee_id, period='month'):
                 FROM attendance_records WHERE employee_id = %s {where_period}
             """, (employee_id,))
             res = cursor.fetchone()
-            total_days = res['total_days']
-            present_days = res['present_days']
+            total_days = res['total_days'] or 0
+            present_days = res['present_days'] or 0
+            # formulas attendance and average
             attendance_rate = (present_days / total_days * 100) if total_days > 0 else 0
-            avg_hours = hours / total_days if total_days > 0 else 0
+            avg_hours = hours / present_days if present_days > 0 else 0
+
 
             # Status
             if attendance_rate > 95:
@@ -195,10 +197,6 @@ def get_employee_by_id(employee_id):
         return emp
     return None
 
-
-# ============================================
-# REPORTS FUNCTIONS (with soft delete)
-# ============================================
 
 def get_department_attendance(period='daily'):
     """Get attendance aggregates by department for ACTIVE employees only."""
@@ -288,6 +286,7 @@ def get_today_stats(for_date=None):
 
             present = stats['present'] if stats else 0
             late = stats['late'] if stats else 0
+            # absent formula
             absent = total_active - (present + late)
 
             result = {'present': present, 'late': late, 'absent': absent}
