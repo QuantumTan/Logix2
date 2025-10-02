@@ -11,8 +11,8 @@ def main():
         # Add the current directory to Python path
         sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-        from database.db_setup import create_database_and_tables
-        from screens.employee_dashboard import AttendanceDashboard
+        from src.database.db_setup import create_database_and_tables
+        from src.screens.employee_dashboard import AttendanceDashboard
 
         print("Initializing database...")
         create_database_and_tables()
@@ -22,7 +22,7 @@ def main():
 
         # Show the main employee dashboard
         window = AttendanceDashboard()
-        window.show()
+        window.showMaximized()
 
         # Run the application
         sys.exit(app.exec())
