@@ -344,8 +344,8 @@ def get_today_stats(for_date=None):
 
 
 def get_employee_monthly_hours(employee_id: str, year: int):
-    """Return a list of {month:int, hours:float} for the given employee and year.
-    Hours is the sum of time between check_in and check_out (or NOW() if still checked in).
+    """Return a list of enhanced monthly data for the given employee and year.
+    Includes hours, absences, worked_days, expected_days, and overtime.
     """
     conn = get_db_connection()
     if not conn:
@@ -354,8 +354,17 @@ def get_employee_monthly_hours(employee_id: str, year: int):
         with conn.cursor() as cursor:
             cursor.execute(
                 """
-                SELECT MONTH(date) AS month,
-                       ROUND(SUM(TIMESTAMPDIFF(MINUTE, check_in, IFNULL(check_out, NOW())))/60.0, 2) AS hours
+                SELECT 
+                    MONTH(date) AS month,
+                    ROUND(SUM(TIMESTAMPDIFF(MINUTE, check_in, IFNULL(check_out, NOW()))/60.0), 2) AS hours,
+                    COUNT(CASE WHEN status = 'Absent' THEN 1 END) AS absences,
+                    COUNT(CASE WHEN status IN ('Present', 'Late') THEN 1 END) AS worked_days,
+                    COUNT(DISTINCT date) AS expected_days,
+                    ROUND(SUM(CASE 
+                        WHEN TIMESTAMPDIFF(MINUTE, check_in, IFNULL(check_out, NOW()))/60.0 > 8 
+                        THEN TIMESTAMPDIFF(MINUTE, check_in, IFNULL(check_out, NOW()))/60.0 - 8 
+                        ELSE 0 
+                    END), 2) AS overtime
                 FROM attendance_records
                 WHERE employee_id = %s AND YEAR(date) = %s
                 GROUP BY MONTH(date)
@@ -364,16 +373,22 @@ def get_employee_monthly_hours(employee_id: str, year: int):
                 (employee_id, year)
             )
             rows = cursor.fetchall() or []
-            # Normalize None to 0
+            # Normalize None values to 0
             for r in rows:
                 r['hours'] = r['hours'] or 0
+                r['absences'] = r['absences'] or 0
+                r['worked_days'] = r['worked_days'] or 0
+                r['expected_days'] = r['expected_days'] or 0
+                r['overtime'] = r['overtime'] or 0
             return rows
     finally:
         conn.close()
 
 
 def get_employee_yearly_hours(employee_id: str):
-    """Return a list of {year:int, hours:float} across all years for the employee."""
+    """Return a list of enhanced yearly data across all years for the employee.
+    Includes hours, absences, worked_days, expected_days, and overtime.
+    """
     conn = get_db_connection()
     if not conn:
         return []
@@ -381,8 +396,17 @@ def get_employee_yearly_hours(employee_id: str):
         with conn.cursor() as cursor:
             cursor.execute(
                 """
-                SELECT YEAR(date) AS year,
-                       ROUND(SUM(TIMESTAMPDIFF(MINUTE, check_in, IFNULL(check_out, NOW())))/60.0, 2) AS hours
+                SELECT 
+                    YEAR(date) AS year,
+                    ROUND(SUM(TIMESTAMPDIFF(MINUTE, check_in, IFNULL(check_out, NOW()))/60.0), 2) AS hours,
+                    COUNT(CASE WHEN status = 'Absent' THEN 1 END) AS absences,
+                    COUNT(CASE WHEN status IN ('Present', 'Late') THEN 1 END) AS worked_days,
+                    COUNT(DISTINCT date) AS expected_days,
+                    ROUND(SUM(CASE 
+                        WHEN TIMESTAMPDIFF(MINUTE, check_in, IFNULL(check_out, NOW()))/60.0 > 8 
+                        THEN TIMESTAMPDIFF(MINUTE, check_in, IFNULL(check_out, NOW()))/60.0 - 8 
+                        ELSE 0 
+                    END), 2) AS overtime
                 FROM attendance_records
                 WHERE employee_id = %s
                 GROUP BY YEAR(date)
@@ -393,6 +417,10 @@ def get_employee_yearly_hours(employee_id: str):
             rows = cursor.fetchall() or []
             for r in rows:
                 r['hours'] = r['hours'] or 0
+                r['absences'] = r['absences'] or 0
+                r['worked_days'] = r['worked_days'] or 0
+                r['expected_days'] = r['expected_days'] or 0
+                r['overtime'] = r['overtime'] or 0
             return rows
     finally:
         conn.close()
@@ -426,7 +454,9 @@ def search_employees(query: str, limit: int = 50):
 
 
 def get_all_employees_hours_for_month(year: int, month: int):
-    """Return [{employee_id, full_name, hours}] for all ACTIVE employees for a given year-month."""
+    """Return enhanced monthly data for all active employees for a specific month/year.
+    Includes hours, absences, worked_days, expected_days, and overtime.
+    """
     conn = get_db_connection()
     if not conn:
         return []
@@ -434,30 +464,43 @@ def get_all_employees_hours_for_month(year: int, month: int):
         with conn.cursor() as cursor:
             cursor.execute(
                 """
-                SELECT e.employee_id,
-                       e.full_name,
-                       ROUND(COALESCE(SUM(TIMESTAMPDIFF(MINUTE, a.check_in, IFNULL(a.check_out, NOW())))/60.0, 0), 2) AS hours
+                SELECT 
+                    e.employee_id,
+                    e.full_name,
+                    ROUND(COALESCE(SUM(TIMESTAMPDIFF(MINUTE, a.check_in, IFNULL(a.check_out, NOW()))/60.0), 0), 2) AS hours,
+                    COUNT(CASE WHEN a.status = 'Absent' THEN 1 END) AS absences,
+                    COUNT(CASE WHEN a.status IN ('Present', 'Late') THEN 1 END) AS worked_days,
+                    COUNT(DISTINCT a.date) AS expected_days,
+                    ROUND(COALESCE(SUM(CASE 
+                        WHEN TIMESTAMPDIFF(MINUTE, a.check_in, IFNULL(a.check_out, NOW()))/60.0 > 8 
+                        THEN TIMESTAMPDIFF(MINUTE, a.check_in, IFNULL(a.check_out, NOW()))/60.0 - 8 
+                        ELSE 0 
+                    END), 0), 2) AS overtime
                 FROM employees e
-                LEFT JOIN attendance_records a
-                       ON e.employee_id = a.employee_id
-                      AND YEAR(a.date) = %s
-                      AND MONTH(a.date) = %s
+                LEFT JOIN attendance_records a ON e.employee_id = a.employee_id 
+                    AND YEAR(a.date) = %s AND MONTH(a.date) = %s
                 WHERE e.is_active = TRUE
                 GROUP BY e.employee_id, e.full_name
-                ORDER BY e.full_name ASC
+                ORDER BY e.full_name
                 """,
                 (year, month)
             )
             rows = cursor.fetchall() or []
             for r in rows:
                 r['hours'] = r['hours'] or 0
+                r['absences'] = r['absences'] or 0
+                r['worked_days'] = r['worked_days'] or 0
+                r['expected_days'] = r['expected_days'] or 0
+                r['overtime'] = r['overtime'] or 0
             return rows
     finally:
         conn.close()
 
 
 def get_all_employees_hours_for_year(year: int):
-    """Return [{employee_id, full_name, hours}] for all ACTIVE employees for a given year."""
+    """Return enhanced yearly data for all active employees for a specific year.
+    Includes hours, absences, worked_days, expected_days, and overtime.
+    """
     conn = get_db_connection()
     if not conn:
         return []
@@ -465,22 +508,34 @@ def get_all_employees_hours_for_year(year: int):
         with conn.cursor() as cursor:
             cursor.execute(
                 """
-                SELECT e.employee_id,
-                       e.full_name,
-                       ROUND(COALESCE(SUM(TIMESTAMPDIFF(MINUTE, a.check_in, IFNULL(a.check_out, NOW())))/60.0, 0), 2) AS hours
+                SELECT 
+                    e.employee_id,
+                    e.full_name,
+                    ROUND(COALESCE(SUM(TIMESTAMPDIFF(MINUTE, a.check_in, IFNULL(a.check_out, NOW()))/60.0), 0), 2) AS hours,
+                    COUNT(CASE WHEN a.status = 'Absent' THEN 1 END) AS absences,
+                    COUNT(CASE WHEN a.status IN ('Present', 'Late') THEN 1 END) AS worked_days,
+                    COUNT(DISTINCT a.date) AS expected_days,
+                    ROUND(COALESCE(SUM(CASE 
+                        WHEN TIMESTAMPDIFF(MINUTE, a.check_in, IFNULL(a.check_out, NOW()))/60.0 > 8 
+                        THEN TIMESTAMPDIFF(MINUTE, a.check_in, IFNULL(a.check_out, NOW()))/60.0 - 8 
+                        ELSE 0 
+                    END), 0), 2) AS overtime
                 FROM employees e
-                LEFT JOIN attendance_records a
-                       ON e.employee_id = a.employee_id
-                      AND YEAR(a.date) = %s
+                LEFT JOIN attendance_records a ON e.employee_id = a.employee_id 
+                    AND YEAR(a.date) = %s
                 WHERE e.is_active = TRUE
                 GROUP BY e.employee_id, e.full_name
-                ORDER BY e.full_name ASC
+                ORDER BY e.full_name
                 """,
                 (year,)
             )
             rows = cursor.fetchall() or []
             for r in rows:
                 r['hours'] = r['hours'] or 0
+                r['absences'] = r['absences'] or 0
+                r['worked_days'] = r['worked_days'] or 0
+                r['expected_days'] = r['expected_days'] or 0
+                r['overtime'] = r['overtime'] or 0
             return rows
     finally:
         conn.close()
