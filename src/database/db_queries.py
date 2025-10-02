@@ -442,7 +442,7 @@ def search_employees(query: str, limit: int = 50):
                 SELECT employee_id, full_name
                 FROM employees
                 WHERE is_active = TRUE
-                  AND (employee_id LIKE %s OR full_name LIKE %s)
+                  AND (CAST(employee_id AS CHAR) LIKE %s OR full_name LIKE %s)
                 ORDER BY full_name ASC
                 LIMIT %s
                 """,
@@ -677,3 +677,26 @@ def get_employee_monthly_attendance_details(employee_id, start_date, end_date):
         conn.close()
         return formatted_records
     return []
+
+
+def add_employee(employee_id, full_name, position, department, image_path=None, leave_credits=15, is_active=True):
+    """Insert a new employee. Returns True on success, False otherwise."""
+    conn = get_db_connection()
+    if conn:
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO employees (employee_id, full_name, position, department, image_path, leave_credits, is_active)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (employee_id, full_name, position, department, image_path, leave_credits, is_active)
+                )
+                conn.commit()
+            return True
+        except Exception:
+            conn.rollback()
+            return False
+        finally:
+            conn.close()
+    return False

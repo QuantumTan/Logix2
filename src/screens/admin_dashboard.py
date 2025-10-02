@@ -252,15 +252,71 @@ class AdminDashboard(DashboardBase):
             modal.exec()
 
     def show_add_employee_modal(self):
-        dlg = AddEmployeeModal(self)
-        dlg.employee_added.connect(self._handle_add_employee)
-        dlg.exec()
+        try:
+            print("[AdminDashboard] Opening AddEmployeeModal (non-blocking)...")
+            dlg = AddEmployeeModal(self)
+            dlg.setWindowModality(Qt.WindowModality.ApplicationModal)
+            dlg.employee_added.connect(self._handle_add_employee)
+            if not hasattr(self, '_open_dialogs'):
+                self._open_dialogs = []
+            self._open_dialogs.append(dlg)
+            dlg.finished.connect(lambda _=0, d=dlg: self._open_dialogs.remove(d) if hasattr(self, '_open_dialogs') and d in self._open_dialogs else None)
+            dlg.show()
+            print("[AdminDashboard] Dialog shown.")
+        except Exception as e:
+            print(f"[AdminDashboard] Error showing AddEmployeeModal: {e}")
+
+    def _handle_add_employee(self, emp):
+        """Persist a newly added employee (admin) and refresh the table."""
+        try:
+            from ..database.db_queries import add_employee
+            import os, shutil
+            image_dir = 'assets/employees'
+            os.makedirs(image_dir, exist_ok=True)
+
+            img_path = emp.get('image_path')
+            saved_image_path = None
+            if img_path and os.path.isfile(img_path):
+                ext = os.path.splitext(img_path)[1]
+                eid = str(emp['id'])
+                saved_image_path = os.path.join(image_dir, f"{eid}{ext}")
+                try:
+                    shutil.copy(img_path, saved_image_path)
+                except Exception as e:
+                    print(f"[AdminDashboard] Warning: failed to copy image: {e}")
+                    saved_image_path = None
+
+            ok = add_employee(
+                employee_id=int(emp['id']),
+                full_name=emp['name'],
+                position=emp['position'],
+                department=emp['department'],
+                image_path=saved_image_path,
+                leave_credits=15,
+                is_active=True
+            )
+            if not ok:
+                from PyQt6.QtWidgets import QMessageBox
+                QMessageBox.critical(self, "Error", "Failed to add employee to database.")
+                return
+
+            self.load_employee_data()
+            self.load_employee_table()
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.information(self, "Success", f"Employee {emp['name']} added successfully!")
+        except Exception as e:
+            print(f"[AdminDashboard] Error adding employee: {e}")
 
     def handle_edit_employee(self, emp_id):
         initial = self.employee_data[emp_id]
         modal = AddEmployeeModal(self, initial=initial, mode="edit")
+        modal.setWindowModality(Qt.WindowModality.ApplicationModal)
         modal.employee_added.connect(self._handle_update_employee)
-        modal.exec()
+        if not hasattr(self, '_open_dialogs'):
+            self._open_dialogs = []
+        self._open_dialogs.append(modal)
+        modal.finished.connect(lambda _=0, d=modal: self._open_dialogs.remove(d) if hasattr(self, '_open_dialogs') and d in self._open_dialogs else None)
+        modal.show()
 
     def handle_delete_employee(self, emp_id):
         if QMessageBox.warning(self, "Confirm Delete", "Are you sure?",

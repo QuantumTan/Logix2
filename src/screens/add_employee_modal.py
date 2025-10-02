@@ -10,18 +10,31 @@ class AddEmployeeModal(QDialog):
     employee_added = pyqtSignal(dict)
 
     def __init__(self, parent: QWidget | None = None, initial: dict | None = None, mode: str = "add"):
-        super().__init__(parent)
-        self.setModal(True)
-        self.mode = mode if mode in ("add", "edit") else "add"
-        self.initial = initial or {}
-        self.setWindowTitle("Edit Employee" if self.mode == "edit" else "Add Employee")
-        self.setFixedSize(720, 460)
+        try:
+            super().__init__(parent)
+            self.setModal(True)
+            self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
+            self.mode = mode if mode in ("add", "edit") else "add"
+            self.initial = initial or {}
+            self.setWindowTitle("Edit Employee" if self.mode == "edit" else "Add Employee")
+            self.setFixedSize(720, 460)
 
-        self._selected_image_path: str | None = None
-        self._build_ui()
-        if self.mode == "edit":
-            self._prefill()
-        self._center_on_parent()
+            self._selected_image_path: str | None = None
+            self._build_ui()
+            if self.mode == "edit":
+                self._prefill()
+        except Exception as e:
+            print(f"Error initializing AddEmployeeModal: {e}")
+            # Try minimal initialization
+            super().__init__(parent)
+            self.setWindowTitle("Add Employee")
+            self.setFixedSize(400, 300)
+            layout = QVBoxLayout(self)
+            label = QLabel("Modal failed to load properly. Please try again.")
+            layout.addWidget(label)
+            close_btn = QPushButton("Close")
+            close_btn.clicked.connect(self.reject)
+            layout.addWidget(close_btn)
 
     def _build_ui(self):
         root = QVBoxLayout(self)
@@ -37,14 +50,15 @@ class AddEmployeeModal(QDialog):
         img_row = QHBoxLayout()
         img_col = QVBoxLayout()
         img_lbl = QLabel("Upload Image")
-        img_lbl.setFont(QFont("Inter", 11, QFont.Weight.Bold))
+        # Use default system font to avoid font issues
+        img_lbl.setFont(QFont())
         self._img_box = QLabel()
         self._img_box.setFixedSize(140, 140)
         self._img_box.setStyleSheet("background:white;border:1px dashed #cbd5e1;border-radius:8px; color:#9ca3af;")
         self._img_box.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._img_box.setText("\n⬆\nSelect")
+        self._img_box.setText("Select")
 
-        pick_btn = QPushButton("Browse…")
+        pick_btn = QPushButton("Browse...")
         pick_btn.setStyleSheet("QPushButton{background:#3b82f6;color:white;padding:6px 10px;border-radius:6px;}")
         pick_btn.clicked.connect(self._pick_image)
 
@@ -96,7 +110,7 @@ class AddEmployeeModal(QDialog):
     def _labeled_lineedit(self, label: str, placeholder: str = ""):
         col = QVBoxLayout()
         lab = QLabel(label)
-        lab.setFont(QFont("Inter", 10, QFont.Weight.Bold))
+        lab.setFont(QFont())
         edit = QLineEdit()
         edit.setPlaceholderText(placeholder)
         edit.setFixedHeight(40)
@@ -113,18 +127,27 @@ class AddEmployeeModal(QDialog):
         self._dept[1].setText(dept)
         self._position[1].setText(pos)
         if self.initial.get("image_path"):
-            pm = QPixmap(self.initial["image_path"]).scaled(140, 140, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-            self._img_box.setPixmap(pm)
-            self._img_box.setText("")
-            self._selected_image_path = self.initial["image_path"]
+            pm = QPixmap(self.initial["image_path"])
+            if not pm.isNull():
+                pm = pm.scaled(140, 140, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                self._img_box.setPixmap(pm)
+                self._img_box.setText("")
+                self._selected_image_path = self.initial["image_path"]
+            else:
+                self._img_box.setText("Image failed to load")
 
     def _pick_image(self):
         path, _ = QFileDialog.getOpenFileName(self, "Select Image", "", "Images (*.png *.jpg *.jpeg)")
         if path:
-            self._selected_image_path = path
-            pm = QPixmap(path).scaled(140, 140, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-            self._img_box.setPixmap(pm)
-            self._img_box.setText("")
+            pm = QPixmap(path)
+            if not pm.isNull():
+                pm = pm.scaled(140, 140, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                self._img_box.setPixmap(pm)
+                self._img_box.setText("")
+                self._selected_image_path = path
+            else:
+                self._img_box.setText("Image failed to load")
+                self._selected_image_path = None
 
     def _submit(self):
         name = self._name[1].text().strip()
@@ -137,33 +160,24 @@ class AddEmployeeModal(QDialog):
                     widget.setStyleSheet("QLineEdit{background:#fff1f2;border:2px solid #ef4444;border-radius:10px;padding:6px 10px;}")
             return
 
-        if self.mode == "edit" and self.initial.get("id"):
-            new_id = str(self.initial["id"])
+        if self.mode == "edit" and self.initial.get("id") is not None:
+            try:
+                new_id = int(self.initial["id"])
+            except Exception:
+                new_id = self._generate_id()
         else:
             new_id = self._generate_id()
         emp = {"id": new_id, "name": name, "department": dept, "position": pos, "image_path": self._selected_image_path}
         self.employee_added.emit(emp)
         self.accept()
 
-    def _generate_id(self) -> str:
+    def _generate_id(self) -> int:
         parent = self.parent()
-        if parent and hasattr(parent, "employee_data") and isinstance(parent.employee_data, dict):
-            nums = []
-            for k in parent.employee_data.keys():
-                try:
-                    nums.append(int(str(k).lstrip("#")))
-                except Exception:
-                    continue
-            base = max(nums) + 1 if nums else 10000
-            return f"#{base}"
-        return "#10000"
-
-    def _center_on_parent(self):
-        if self.parent():
-            pg = self.parent().geometry()
-            self.move(pg.x() + (pg.width() - self.width()) // 2,
-                      pg.y() + (pg.height() - self.height()) // 2)
-        else:
-            scr = self.screen().geometry()
-            self.move(scr.x() + (scr.width() - self.width()) // 2,
-                      scr.y() + (scr.height() - self.height()) // 2)
+        if parent and hasattr(parent, "employee_data") and isinstance(parent.employee_data, dict) and parent.employee_data:
+            try:
+                nums = [int(k) for k in parent.employee_data.keys()]
+                base = max(nums) + 1 if nums else 10000
+                return int(base)
+            except Exception:
+                return 10000
+        return 10000

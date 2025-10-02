@@ -239,7 +239,7 @@ class AttendanceDashboard(QWidget):
         ])
         self.table.setRowCount(len(attendance))
         for r, data in enumerate(attendance):
-            self.table.setItem(r, 0, QTableWidgetItem(data['employee_id']))
+            self.table.setItem(r, 0, QTableWidgetItem(str(data['employee_id'])))
             self.table.setItem(r, 1, QTableWidgetItem(data['full_name']))
             self.table.setItem(r, 2, QTableWidgetItem(data['check_in']))
             self.table.setItem(r, 3, QTableWidgetItem(data['check_out']))
@@ -255,28 +255,36 @@ class AttendanceDashboard(QWidget):
         self.absent_number.setText(str(stats.get('absent', 0)))
 
     def handle_checkin(self):
-        emp_id = self.checkin_id.text().strip()
-        if not emp_id:
+        emp_id_text = self.checkin_id.text().strip()
+        if not emp_id_text:
             QMessageBox.warning(self, "Error", "Enter Employee ID")
+            return
+        try:
+            emp_id = int(emp_id_text)
+        except Exception:
+            QMessageBox.warning(self, "Error", "Employee ID must be a number.")
             return
         if employee_check_in(emp_id):
             QMessageBox.information(self, "Success", "Checked in successfully!")
             self.load_attendance_data()
-            # Clear input and focus for next entry
             self.checkin_id.clear()
             self.checkin_id.setFocus()
         else:
             QMessageBox.warning(self, "Error", "Invalid ID, already checked in, or error.")
 
     def handle_checkout(self):
-        emp_id = self.checkin_id.text().strip()
-        if not emp_id:
+        emp_id_text = self.checkin_id.text().strip()
+        if not emp_id_text:
             QMessageBox.warning(self, "Error", "Enter Employee ID")
+            return
+        try:
+            emp_id = int(emp_id_text)
+        except Exception:
+            QMessageBox.warning(self, "Error", "Employee ID must be a number.")
             return
         if employee_check_out(emp_id):
             QMessageBox.information(self, "Success", "Checked out successfully!")
             self.load_attendance_data()
-            # Clear input and focus for next entry
             self.checkin_id.clear()
             self.checkin_id.setFocus()
         else:

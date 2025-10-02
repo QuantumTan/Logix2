@@ -33,7 +33,7 @@ class StaffDashboard(DashboardBase):
         for row in range(len(keys)):
             emp_id = keys[row]
             emp = self.employee_data[emp_id]
-            self.table.setItem(row, 0, QTableWidgetItem(emp['id']))
+            self.table.setItem(row, 0, QTableWidgetItem(str(emp['id'])))
             self.table.setItem(row, 1, QTableWidgetItem(emp['name']))
             self.table.setItem(row, 2, QTableWidgetItem(emp['position']))
             self.table.setItem(row, 3, QTableWidgetItem(emp['department']))
@@ -80,15 +80,75 @@ class StaffDashboard(DashboardBase):
             modal.exec()
 
     def show_add_employee_modal(self):
-        dlg = AddEmployeeModal(self)
-        dlg.employee_added.connect(self._handle_add_employee)
-        dlg.exec()
+        try:
+            print("[StaffDashboard] Opening AddEmployeeModal (non-blocking)...")
+            dlg = AddEmployeeModal(self)
+            dlg.setWindowModality(Qt.WindowModality.ApplicationModal)
+            dlg.employee_added.connect(self._handle_add_employee)
+            # keep reference to prevent GC
+            if not hasattr(self, '_open_dialogs'):
+                self._open_dialogs = []
+            self._open_dialogs.append(dlg)
+            dlg.finished.connect(lambda _=0, d=dlg: self._open_dialogs.remove(d) if hasattr(self, '_open_dialogs') and d in self._open_dialogs else None)
+            dlg.show()
+            print("[StaffDashboard] Dialog shown.")
+        except Exception as e:
+            print(f"[StaffDashboard] Error showing AddEmployeeModal: {e}")
 
     def handle_edit_employee(self, emp_id):
         initial = self.employee_data[emp_id]
         modal = AddEmployeeModal(self, initial=initial, mode="edit")
+        modal.setWindowModality(Qt.WindowModality.ApplicationModal)
         modal.employee_added.connect(self._handle_update_employee)
-        modal.exec()
+        if not hasattr(self, '_open_dialogs'):
+            self._open_dialogs = []
+        self._open_dialogs.append(modal)
+        modal.finished.connect(lambda _=0, d=modal: self._open_dialogs.remove(d) if hasattr(self, '_open_dialogs') and d in self._open_dialogs else None)
+        modal.show()
+
+    def _handle_add_employee(self, emp):
+        """Persist a newly added employee and refresh the table.
+        emp: dict with keys id, name, department, position, image_path
+        """
+        try:
+            from ..database.db_queries import add_employee
+            import os, shutil
+            image_dir = 'assets/employees'
+            os.makedirs(image_dir, exist_ok=True)
+
+            img_path = emp.get('image_path')
+            saved_image_path = None
+            if img_path and os.path.isfile(img_path):
+                ext = os.path.splitext(img_path)[1]
+                eid = str(emp['id'])
+                saved_image_path = os.path.join(image_dir, f"{eid}{ext}")
+                try:
+                    shutil.copy(img_path, saved_image_path)
+                except Exception as e:
+                    print(f"[StaffDashboard] Warning: failed to copy image: {e}")
+                    saved_image_path = None
+
+            ok = add_employee(
+                employee_id=int(emp['id']),
+                full_name=emp['name'],
+                position=emp['position'],
+                department=emp['department'],
+                image_path=saved_image_path,
+                leave_credits=15,
+                is_active=True
+            )
+            if not ok:
+                from PyQt6.QtWidgets import QMessageBox
+                QMessageBox.critical(self, "Error", "Failed to add employee to database.")
+                return
+
+            # Refresh in-memory and table
+            self.load_employee_data()
+            self.load_employee_table()
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.information(self, "Success", f"Employee {emp['name']} added successfully!")
+        except Exception as e:
+            print(f"[StaffDashboard] Error adding employee: {e}")
 
     def _handle_update_employee(self, emp):
         import os
@@ -97,7 +157,7 @@ class StaffDashboard(DashboardBase):
         os.makedirs(image_dir, exist_ok=True)
         if emp.get('image_path') and not emp['image_path'].startswith(image_dir):
             ext = os.path.splitext(emp['image_path'])[1]
-            new_path = os.path.join(image_dir, f"{emp['id']}{ext}")
+            new_path = os.path.join(image_dir, f"{str(emp['id'])}{ext}")
             shutil.copy(emp['image_path'], new_path)
             emp['image_path'] = new_path
         update_employee(emp['id'], emp['name'], emp['position'], emp['department'], emp['image_path'])

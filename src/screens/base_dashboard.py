@@ -427,10 +427,14 @@ class DashboardBase(QWidget):
 
     def filter_attendance_table(self, text):
         text = (text or "").lower()
-        rows = [row for row in self.attendance_rows if text in row.get('full_name', '').lower() or text in row.get('employee_id', '').lower()]
+        rows = [
+            row for row in self.attendance_rows
+            if text in (row.get('full_name', '') or '').lower()
+            or text in str(row.get('employee_id', '')).lower()
+        ]
         self.attendance_table.setRowCount(len(rows))
         for r, data in enumerate(rows):
-            self.attendance_table.setItem(r, 0, QTableWidgetItem(data.get('employee_id', '')))
+            self.attendance_table.setItem(r, 0, QTableWidgetItem(str(data.get('employee_id', ''))))
             self.attendance_table.setItem(r, 1, QTableWidgetItem(data.get('full_name', '')))
             self.attendance_table.setItem(r, 2, QTableWidgetItem(data.get('check_in', '--')))
             self.attendance_table.setItem(r, 3, QTableWidgetItem(data.get('check_out', '--')))
@@ -506,7 +510,7 @@ class DashboardBase(QWidget):
         for row in range(len(keys)):
             emp_id = keys[row]
             emp = self.employee_data[emp_id]
-            self.table.setItem(row, 0, QTableWidgetItem(emp['id']))
+            self.table.setItem(row, 0, QTableWidgetItem(str(emp['id'])))
             self.table.setItem(row, 1, QTableWidgetItem(emp['name']))
             self.table.setItem(row, 2, QTableWidgetItem(emp['position']))
             self.table.setItem(row, 3, QTableWidgetItem(emp['department']))
@@ -542,10 +546,14 @@ class DashboardBase(QWidget):
             self.table.setCellWidget(row, 6, action_widget)  # Note: Column 5 is "Action", but labels have 6 columns (0-5)
 
     def filter_employee_table(self, text: str):
-        text = text.lower()
+        text = (text or '').lower()
         row = 0
         for emp_id, emp in self.employee_data.items():
-            if text in emp['name'].lower() or text in emp['id'].lower() or text in emp['position'].lower() or text in emp['department'].lower():
+            id_match = text in str(emp['id']).lower()
+            name_match = text in (emp['name'] or '').lower()
+            pos_match = text in (emp['position'] or '').lower()
+            dept_match = text in (emp['department'] or '').lower()
+            if id_match or name_match or pos_match or dept_match:
                 self.table.setRowHidden(row, False)
             else:
                 self.table.setRowHidden(row, True)

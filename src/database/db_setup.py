@@ -23,7 +23,7 @@ def create_database_and_tables():
         # Create employees table with leave_credits and is_active columns
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS employees (
-                employee_id VARCHAR(10) PRIMARY KEY,
+                employee_id INT PRIMARY KEY,
                 full_name VARCHAR(100) NOT NULL,
                 position VARCHAR(50) NOT NULL,
                 department VARCHAR(50) NOT NULL,
@@ -60,7 +60,7 @@ def create_database_and_tables():
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS attendance_records (
                 record_id INT AUTO_INCREMENT PRIMARY KEY,
-                employee_id VARCHAR(10) NOT NULL,
+                employee_id INT NOT NULL,
                 check_in DATETIME,
                 check_out DATETIME,
                 status ENUM('Present', 'Late', 'Absent') NOT NULL DEFAULT 'Absent',
@@ -115,6 +115,51 @@ def create_database_and_tables():
         # Update any existing records to be active (in case is_active was just added)
         cursor.execute("UPDATE employees SET is_active = TRUE WHERE is_active IS NULL")
         cursor.execute("UPDATE staff_users SET is_active = TRUE WHERE is_active IS NULL")
+
+        # --- MIGRATION: convert employee_id from VARCHAR to INT if needed ---
+        cursor.execute("""
+            SELECT DATA_TYPE
+            FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = 'logix'
+              AND TABLE_NAME = 'employees'
+              AND COLUMN_NAME = 'employee_id'
+        """)
+        dtype = cursor.fetchone()
+        if dtype and dtype[0].lower() != 'int':
+            try:
+                # Temporarily disable FK checks
+                cursor.execute("SET FOREIGN_KEY_CHECKS=0")
+
+                # Find existing FK name on attendance_records.employee_id
+                cursor.execute("""
+                    SELECT CONSTRAINT_NAME
+                    FROM information_schema.KEY_COLUMN_USAGE
+                    WHERE TABLE_SCHEMA = 'logix'
+                      AND TABLE_NAME = 'attendance_records'
+                      AND COLUMN_NAME = 'employee_id'
+                      AND REFERENCED_TABLE_NAME = 'employees'
+                """)
+                fk = cursor.fetchone()
+                if fk and fk[0]:
+                    cursor.execute(f"ALTER TABLE attendance_records DROP FOREIGN KEY `{fk[0]}`")
+
+                # Normalize values by stripping leading '#' and casting to int
+                cursor.execute("UPDATE employees SET employee_id = CAST(REPLACE(employee_id, '#', '') AS UNSIGNED)")
+                cursor.execute("UPDATE attendance_records SET employee_id = CAST(REPLACE(employee_id, '#', '') AS UNSIGNED)")
+
+                # Alter column types to INT
+                cursor.execute("ALTER TABLE employees MODIFY employee_id INT NOT NULL")
+                cursor.execute("ALTER TABLE attendance_records MODIFY employee_id INT NOT NULL")
+
+                # Recreate FK with a stable name
+                cursor.execute("""
+                    ALTER TABLE attendance_records
+                    ADD CONSTRAINT fk_attendance_employee
+                    FOREIGN KEY (employee_id) REFERENCES employees(employee_id)
+                    ON DELETE CASCADE
+                """)
+            finally:
+                cursor.execute("SET FOREIGN_KEY_CHECKS=1")
 
         connection.commit()
         print("Database setup completed successfully.")
