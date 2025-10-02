@@ -318,6 +318,45 @@ class AdminDashboard(DashboardBase):
         modal.finished.connect(lambda _=0, d=modal: self._open_dialogs.remove(d) if hasattr(self, '_open_dialogs') and d in self._open_dialogs else None)
         modal.show()
 
+    def _handle_update_employee(self, emp: dict):
+        """Persist edits to an existing employee and refresh the table.
+        emp: dict with keys id, name, department, position, image_path
+        """
+        try:
+            import os
+            import shutil
+            image_dir = 'assets/employees'
+            os.makedirs(image_dir, exist_ok=True)
+
+            img_path = emp.get('image_path')
+            # If a new image was picked (not already copied under assets/employees), copy it
+            if img_path and not os.path.normpath(img_path).startswith(os.path.normpath(image_dir)):
+                ext = os.path.splitext(img_path)[1]
+                new_path = os.path.join(image_dir, f"{str(emp['id'])}{ext}")
+                try:
+                    shutil.copy(img_path, new_path)
+                    emp['image_path'] = new_path
+                except Exception as e:
+                    print(f"[AdminDashboard] Warning: failed to copy new image: {e}")
+                    # Keep existing path if copy fails
+
+            # Update in DB
+            update_employee(
+                emp['id'],
+                emp['name'],
+                emp['position'],
+                emp['department'],
+                emp.get('image_path')
+            )
+
+            # Refresh UI
+            self.load_employee_data()
+            self.load_employee_table()
+            QMessageBox.information(self, "Success", f"Employee {emp['name']} updated successfully!")
+        except Exception as e:
+            print(f"[AdminDashboard] Error updating employee: {e}")
+            QMessageBox.critical(self, "Error", "Failed to update employee.")
+
     def handle_delete_employee(self, emp_id):
         if QMessageBox.warning(self, "Confirm Delete", "Are you sure?",
                                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No) == QMessageBox.StandardButton.Yes:

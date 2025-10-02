@@ -260,7 +260,7 @@ class DashboardBase(QWidget):
         self.time_label = QLabel("Current Time\n--:--:-- --")
         self.time_label.setFont(QFont("Inter", 18, QFont.Weight.Bold))
         self.time_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.time_label.setStyleSheet("background: #eff6ff; color: #3b82f6; font-size: 16px; padding: 20px; border-radius: 10px;")
+        self.time_label.setStyleSheet("background: #eff6ff; color: #3b82f6; font-size: 25px; padding: 20px; border-radius: 10px;")
         self.time_label.setFixedHeight(160)
 
         # Stat Cards (label top left, number bottom right)
@@ -353,12 +353,12 @@ class DashboardBase(QWidget):
         layout.setSpacing(0)
 
         text_label = QLabel(label_text)
-        text_label.setFont(QFont("Inter", 10, QFont.Weight.Bold))
+        text_label.setFont(QFont("Inter", 18, QFont.Weight.Bold))
         text_label.setStyleSheet(f"color: {fg_color}; margin: 10px")
         text_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
 
         number_label = QLabel(str(number))
-        number_label.setFont(QFont("Inter", 16, QFont.Weight.Bold))
+        number_label.setFont(QFont("Inter", 18, QFont.Weight.Bold))
         number_label.setStyleSheet(f"color: {fg_color}; margin: 10px;")
         number_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignBottom)
 

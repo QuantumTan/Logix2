@@ -126,15 +126,25 @@ class AddEmployeeModal(QDialog):
         self._name[1].setText(name)
         self._dept[1].setText(dept)
         self._position[1].setText(pos)
-        if self.initial.get("image_path"):
-            pm = QPixmap(self.initial["image_path"])
-            if not pm.isNull():
-                pm = pm.scaled(140, 140, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-                self._img_box.setPixmap(pm)
-                self._img_box.setText("")
-                self._selected_image_path = self.initial["image_path"]
-            else:
-                self._img_box.setText("Image failed to load")
+        path = self.initial.get("image_path")
+        if path:
+            try:
+                import os
+                allowed = {".png", ".jpg", ".jpeg"}
+                ext = os.path.splitext(path)[1].lower()
+                if os.path.isfile(path) and ext in allowed:
+                    pm = QPixmap(path)
+                    if not pm.isNull():
+                        pm = pm.scaled(140, 140, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                        self._img_box.setPixmap(pm)
+                        self._img_box.setText("")
+                        self._selected_image_path = path
+                    else:
+                        self._img_box.setText("Image failed to load")
+                else:
+                    self._img_box.setText("No preview")
+            except Exception:
+                self._img_box.setText("No preview")
 
     def _pick_image(self):
         path, _ = QFileDialog.getOpenFileName(self, "Select Image", "", "Images (*.png *.jpg *.jpeg)")
