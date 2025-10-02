@@ -11,8 +11,8 @@ def main():
         # Add the current directory to Python path
         sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-        from database.db_setup import create_database_and_tables
-        from screens.employee_dashboard import AttendanceDashboard
+        from src.database.db_setup import create_database_and_tables
+        from src.screens.employee_dashboard import AttendanceDashboard
 
         print("Initializing database...")
         create_database_and_tables()
