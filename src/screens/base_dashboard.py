@@ -372,15 +372,15 @@ class DashboardBase(QWidget):
 
             edit_btn = QPushButton("Edit")
             edit_btn.setStyleSheet("QPushButton{background:#60a5fa;color:white;padding:4px 8px;border-radius:6px;font-size:10px;}")
-            edit_btn.setFixedWidth(80)
+            edit_btn.setFixedWidth(50)
 
             delete_btn = QPushButton("Delete")
             delete_btn.setStyleSheet("QPushButton{background:#ef4444;color:white;padding:4px 8px;border-radius:6px;font-size:10px;}")
-            delete_btn.setFixedWidth(80)
+            delete_btn.setFixedWidth(50)
 
             leave_btn = QPushButton("Edit Leave")
             leave_btn.setStyleSheet("QPushButton{background:#f59e0b;color:white;padding:4px 8px;border-radius:6px;font-size:10px;}")
-            leave_btn.setFixedWidth(80)
+            leave_btn.setFixedWidth(50)
 
             edit_btn.clicked.connect(lambda checked, eid=emp_id: self.handle_edit_employee(eid))
             delete_btn.clicked.connect(lambda checked, eid=emp_id: self.handle_delete_employee(eid))
