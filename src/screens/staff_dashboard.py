@@ -61,21 +61,6 @@ class StaffDashboard(DashboardBase):
             h.addStretch()
             self.table.setCellWidget(row, 6, action_widget)
 
-    def show_employee_details(self, emp_id):
-        basic = get_employee_by_id(emp_id)
-        if basic:
-            details = get_employee_details(emp_id)
-            employee_data = {
-                'id': basic['employee_id'],
-                'name': basic['full_name'],
-                'position': basic['position'],
-                'department': basic['department'],
-                'image_path': basic.get('image_path'),
-                **details
-            }
-            modal = EmployeeDetailsModal(employee_data, self)
-            modal.exec()
-
     def show_add_employee_modal(self):
         try:
             print("[StaffDashboard] Opening AddEmployeeModal (non-blocking)...")

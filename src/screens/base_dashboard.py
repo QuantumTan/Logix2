@@ -1,5 +1,4 @@
 # screens/base_dashboard.py
-import sys
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout,
     QHBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QFrame, QSizePolicy, QStackedWidget,
@@ -9,163 +8,9 @@ from PyQt6.QtCore import Qt, QTimer, QTime, QDate
 from PyQt6.QtGui import QFont, QPixmap, QPainter, QPageLayout, QPageSize, QPdfWriter
 
 from ..database.db_queries import get_all_employees, get_employee_details, get_department_attendance, update_employee, delete_employee, get_today_attendance, get_today_stats
+from ..widgets.reports_chart import ReportsChartWidget
 import os
 import shutil
-
-MATPLOTLIB_AVAILABLE = False
-
-
-def _matplotlib_disabled_by_env() -> bool:
-    return os.environ.get("LOGIX_DISABLE_CHARTS", "0").strip() in {"1", "true", "True", "yes", "on"}
-
-
-#shared chart widget for reports
-class ReportsChartWidget(QWidget):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-
-        self.figure = None
-        self.canvas = None
-
-        if _matplotlib_disabled_by_env():
-            self._create_fallback_widget(layout)
-            return
-
-        # try to import matplotlib lazily here, and handle any failures gracefully
-        global MATPLOTLIB_AVAILABLE
-        try:
-            from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas  # type: ignore
-            from matplotlib.figure import Figure  # type: ignore
-            import matplotlib.pyplot as plt  # type: ignore
-            self._FigureCanvas = FigureCanvas
-            self._Figure = Figure
-            self._plt = plt
-            MATPLOTLIB_AVAILABLE = True
-        except Exception as e:
-            print(f"Matplotlib not available or failed to initialize: {e}")
-            MATPLOTLIB_AVAILABLE = False
-            self._FigureCanvas = None
-            self._Figure = None
-            self._plt = None
-
-        if MATPLOTLIB_AVAILABLE and self._Figure and self._FigureCanvas:
-            try:
-                # Remove tight_layout=True and increase figure size to prevent layout warnings
-                self.figure = self._Figure(figsize=(12, 8))
-                self.canvas = self._FigureCanvas(self.figure)
-                layout.addWidget(self.canvas)
-                # Load static data immediately
-                self.load_static_demo_data()
-            except Exception as e:
-                print(f"Chart widget creation failed: {e}")
-                self.figure = None
-                self.canvas = None
-                self._create_fallback_widget(layout)
-        else:
-            self._create_fallback_widget(layout)
-
-    #shows an error message if matplotlib is not available funtion:
-    def _create_fallback_widget(self, layout):
-        """Create fallback widget when matplotlib is not available"""
-        lbl = QLabel("📊 Charts require matplotlib\nInstall with: pip install matplotlib")
-        lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lbl.setStyleSheet("color:#6b7280; font-size: 14px; padding: 40px; background: white; border-radius: 8px;")
-        layout.addWidget(lbl)
-
-    def load_static_demo_data(self):
-        """Load comprehensive static demo data for charts with 2x2 layout"""
-        try:
-            if not MATPLOTLIB_AVAILABLE or not self.canvas or not self.figure:
-                return
-
-            # Create a simple demo chart to show the chart is working
-            self.figure.clear()
-            ax = self.figure.add_subplot(111)
-
-            # Sample data for demonstration
-            departments = ['IT', 'HR', 'Finance', 'Operations']
-            present = [25, 15, 20, 30]
-            late = [5, 3, 4, 8]
-            absent = [2, 4, 1, 3]
-
-            # Grouped bar chart positions
-            x = list(range(len(departments)))
-            width = 0.25
-            x_present = [i - width for i in x]
-            x_late = x
-            x_absent = [i + width for i in x]
-
-            ax.bar(x_present, present, width=width, color="#10b981", label="Present", alpha=0.9)
-            ax.bar(x_late, late, width=width, color="#f59e0b", label="Late", alpha=0.9)
-            ax.bar(x_absent, absent, width=width, color="#ef4444", label="Absent", alpha=0.9)
-
-            ax.set_xticks(x)
-            ax.set_xticklabels(departments)
-            ax.set_title('Sample Attendance Report', fontweight='bold')
-            ax.set_ylabel('Number of Employees')
-            ax.grid(True, axis='y', linestyle='--', alpha=0.3)
-            ax.legend()
-
-            # Adjust layout manually to prevent tight_layout warnings
-            self.figure.subplots_adjust(left=0.1, bottom=0.15, right=0.9, top=0.9)
-            self.canvas.draw()
-
-        except Exception as e:
-            print(f"Failed to load demo chart data: {e}")
-
-    def plot(self, labels: list[str], present: list[int], late: list[int], absent: list[int], title: str):
-        """Plot method for dynamic data with grouped bars for Present, Late, Absent"""
-        try:
-            if not MATPLOTLIB_AVAILABLE or not self.canvas or not self.figure:
-                return
-
-            # Normalize lengths to avoid index errors
-            n = min(len(labels), len(present), len(late), len(absent))
-            labels = labels[:n]
-            present = [int(p or 0) for p in present[:n]]
-            late = [int(l or 0) for l in late[:n]]
-            absent = [int(a or 0) for a in absent[:n]]
-
-            # Clear and create single plot
-            self.figure.clear()
-            ax = self.figure.add_subplot(111)
-
-            x = list(range(len(labels)))
-            width = 0.25 if len(labels) > 0 else 0.25
-
-            x_present = [i - width for i in x]
-            x_late = x
-            x_absent = [i + width for i in x]
-
-            ax.bar(x_present, present, width=width, color="#10b981", label="Present", alpha=0.9)
-            ax.bar(x_late, late, width=width, color="#f59e0b", label="Late", alpha=0.9)
-            ax.bar(x_absent, absent, width=width, color="#ef4444", label="Absent", alpha=0.9)
-
-            ax.set_xticks(x)
-            ax.set_xticklabels(labels, rotation=0 if len(labels) <= 6 else 20, ha='right')
-            ax.set_title(title, fontweight='bold')
-            ax.set_ylabel('Number of Employees')
-            ax.grid(True, axis='y', linestyle='--', alpha=0.3)
-            ax.legend()
-
-            # Adjust layout manually to prevent tight_layout warnings
-            self.figure.subplots_adjust(left=0.1, bottom=0.2 if len(labels) > 6 else 0.15, right=0.95, top=0.9)
-            self.canvas.draw()
-
-        except Exception as e:
-            print(f"Chart plotting failed: {e}")
-
-    def closeEvent(self, event):
-        """clean up matplotlib resources to prevent memory issues"""
-        try:
-            if getattr(self, '_plt', None) is not None and getattr(self, 'figure', None) is not None:
-                # Close the specific figure to release backend resources
-                self._plt.close(self.figure)
-        except Exception as e:
-            print(f"Error closing ReportsChartWidget: {e}")
-        super().closeEvent(event)
 
 
 class DashboardBase(QWidget):
@@ -447,8 +292,24 @@ class DashboardBase(QWidget):
             self.attendance_table.setCellWidget(r, 5, view_btn)
 
     def show_employee_details(self, emp_id):
-        # Placeholder - implement in child classes
-        pass
+        try:
+            from ..database.db_queries import get_employee_by_id, get_employee_details
+            basic = get_employee_by_id(emp_id)
+            if basic:
+                details = get_employee_details(emp_id)
+                employee_data = {
+                    'id': basic['employee_id'],
+                    'name': basic['full_name'],
+                    'position': basic['position'],
+                    'department': basic['department'],
+                    'image_path': basic.get('image_path'),
+                    **(details or {})
+                }
+                from .emp_details import EmployeeDetailsModal
+                modal = EmployeeDetailsModal(employee_data, self)
+                modal.exec()
+        except Exception as e:
+            print(f"Failed to show employee details: {e}")
 
     def setup_employee_management_page(self):
         if hasattr(self, 'employee_management_page') and self.employee_management_page is not None:
@@ -1231,7 +1092,7 @@ class DashboardBase(QWidget):
         # Fetch and plot
         labels, present, late, absent = self.get_report_data(self.report_period)
 
-        if hasattr(self, 'reports_chart') and self.reports_chart and MATPLOTLIB_AVAILABLE and getattr(self.reports_chart, 'canvas', None):
+        if hasattr(self, 'reports_chart') and self.reports_chart and getattr(self.reports_chart, 'canvas', None):
             try:
                 self.reports_chart.plot(labels, present, late, absent, title)
             except Exception as e:
