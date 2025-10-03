@@ -1,5 +1,4 @@
 # db_queries.py
-import pymysql
 from datetime import datetime
 import hashlib
 
@@ -24,39 +23,6 @@ def get_all_employees():
         conn.close()
         return employees
     return []
-
-
-def get_next_employee_id(min_start: int = 10000) -> int:
-    """Return the next available employee_id using MAX(employee_id)+1 across ALL rows.
-    Ensures the starting range at min_start (default 10000).
-    Fallbacks to min_start on any error.
-    """
-    conn = get_db_connection()
-    if conn:
-        try:
-            with conn.cursor() as cursor:
-                # Use parameter for min_start to avoid SQL injection and to compute default base
-                cursor.execute(
-                    "SELECT COALESCE(MAX(employee_id), %s - 1) + 1 AS next_id FROM employees",
-                    (min_start,)
-                )
-                row = cursor.fetchone()
-                # row may be dict due to DictCursor
-                next_val = None
-                if row is not None:
-                    next_val = row.get('next_id') if isinstance(row, dict) else (row[0] if len(row) > 0 else None)
-                if next_val is None:
-                    return min_start
-                try:
-                    next_int = int(next_val)
-                except Exception:
-                    return min_start
-                return next_int if next_int >= min_start else min_start
-        except Exception:
-            return min_start
-        finally:
-            conn.close()
-    return min_start
 
 
 def update_employee(employee_id, full_name, position, department, image_path=None, leave_credits=None):
@@ -246,95 +212,6 @@ def get_employee_details(employee_id, period='month'):
             avg_hours = hours / present_days if present_days > 0 else 0
 
             # Status
-            if attendance_rate > 95:
-                status = 'Excellent'
-            elif attendance_rate > 85:
-                status = 'Good'
-            else:
-                status = 'Needs Improvement'
-
-        conn.close()
-        return {
-            'absences': absences,
-            'hours': round(hours),
-            'leave_credits': leave_credits,
-            'attendance_rate': round(attendance_rate),
-            'avg_hours': round(avg_hours, 1),
-            'status': status
-        }
-    return {}
-
-
-def get_employee_details_by_date_range(employee_id, start_date, end_date):
-    """Get computed details for an ACTIVE employee within a specific date range.
-    Absences are computed as working weekdays without a Present/Late record
-    between effective_start (max of hire date and start_date) and effective_end
-    (min of end_date and tomorrow), excluding weekends and future days.
-    """
-    conn = get_db_connection()
-    if conn:
-        with conn.cursor() as cursor:
-            # Load employee and ensure active
-            cursor.execute("SELECT leave_credits, created_at FROM employees WHERE employee_id = %s AND is_active = TRUE", (employee_id,))
-            emp = cursor.fetchone()
-            if not emp:
-                return {}
-            leave_credits = emp.get('leave_credits', 15)
-            created_at = emp.get('created_at')
-
-            from datetime import date as _date, timedelta as _td
-            today = _date.today()
-            # Cap end to tomorrow (exclusive) to avoid future days
-            cap_end_exclusive = min(end_date, today + _td(days=1))
-            hire_date = created_at.date() if created_at else None
-            effective_start = max(start_date, hire_date) if hire_date else start_date
-
-            if effective_start >= cap_end_exclusive:
-                return {
-                    'absences': 0,
-                    'hours': 0,
-                    'leave_credits': leave_credits,
-                    'attendance_rate': 0,
-                    'avg_hours': 0.0,
-                    'status': 'Needs Improvement'
-                }
-
-            # Present days within range
-            cursor.execute(
-                """
-                SELECT COUNT(DISTINCT date) AS present_days
-                FROM attendance_records
-                WHERE employee_id = %s AND date >= %s AND date < %s
-                  AND status IN ('Present','Late')
-                  AND WEEKDAY(date) < 5
-                """,
-                (employee_id, effective_start, cap_end_exclusive)
-            )
-            present_days = (cursor.fetchone() or {}).get('present_days', 0) or 0
-
-            # Hours within range
-            cursor.execute(
-                """
-                SELECT SUM(TIMESTAMPDIFF(MINUTE, check_in, IFNULL(check_out, NOW())) / 60.0) AS hours
-                FROM attendance_records
-                WHERE employee_id = %s AND date >= %s AND date < %s
-                """,
-                (employee_id, effective_start, cap_end_exclusive)
-            )
-            hours = (cursor.fetchone() or {}).get('hours', 0) or 0
-
-            # Working weekdays in range
-            d = effective_start
-            working_days = 0
-            while d < cap_end_exclusive:
-                if d.weekday() < 5:
-                    working_days += 1
-                d += _td(days=1)
-
-            absences = max(0, working_days - present_days)
-            attendance_rate = (present_days / working_days * 100) if working_days > 0 else 0
-            avg_hours = (hours / present_days) if present_days > 0 else 0
-
             if attendance_rate > 95:
                 status = 'Excellent'
             elif attendance_rate > 85:
@@ -874,89 +751,6 @@ def delete_staff(username):
             cursor.execute("UPDATE staff_users SET is_active = FALSE WHERE username = %s", (username,))
             conn.commit()
         conn.close()
-
-
-def get_employee_monthly_attendance_details(employee_id, start_date, end_date):
-    """Get detailed monthly attendance records for an employee within a specific date range.
-    Ensures a row per working weekday in the range. Missing records are emitted as Absent.
-    Date range is [start_date, end_date), capped by employee hire date and today.
-    """
-    conn = get_db_connection()
-    if conn:
-        with conn.cursor() as cursor:
-            # Verify employee active and get hire date
-            cursor.execute(
-                "SELECT full_name, created_at FROM employees WHERE employee_id = %s AND is_active = TRUE",
-                (employee_id,)
-            )
-            res = cursor.fetchone()
-            if not res:
-                conn.close()
-                return []
-            created_at = res.get('created_at')
-
-            from datetime import date as _date, timedelta as _td, datetime as _dt
-            today = _date.today()
-            cap_end_exclusive = min(end_date, today + _td(days=1))
-            hire_date = created_at.date() if created_at else None
-            effective_start = max(start_date, hire_date) if hire_date else start_date
-
-            if effective_start >= cap_end_exclusive:
-                conn.close()
-                return []
-
-            # Fetch all records in the effective range
-            cursor.execute(
-                """
-                SELECT date, check_in, check_out, status
-                FROM attendance_records
-                WHERE employee_id = %s AND date >= %s AND date < %s
-                """,
-                (employee_id, effective_start, cap_end_exclusive)
-            )
-            rows = cursor.fetchall() or []
-            by_date = {r['date']: r for r in rows}
-
-            # Build a complete list of working days
-            formatted_records = []
-            cur = effective_start
-            while cur < cap_end_exclusive:
-                if cur.weekday() < 5:  # Mon-Fri
-                    rec = by_date.get(cur)
-                    if rec:
-                        ci = rec.get('check_in')
-                        co = rec.get('check_out')
-                        status = rec.get('status') or 'Absent'
-                        # Compute daily hours similar to prior logic
-                        if ci and co:
-                            diff_hours = round((co - ci).total_seconds() / 3600.0, 2)
-                        elif ci and not co:
-                            diff_hours = round((_dt.now() - ci).total_seconds() / 3600.0, 2)
-                        else:
-                            diff_hours = 0
-                        formatted_records.append({
-                            'date': cur.strftime('%Y-%m-%d'),
-                            'check_in': ci.strftime('%H:%M') if ci else '--',
-                            'check_out': co.strftime('%H:%M') if co else '--',
-                            'status': status,
-                            'daily_hours': diff_hours
-                        })
-                    else:
-                        # No record for a working day: Absent
-                        formatted_records.append({
-                            'date': cur.strftime('%Y-%m-%d'),
-                            'check_in': '--',
-                            'check_out': '--',
-                            'status': 'Absent',
-                            'daily_hours': 0
-                        })
-                cur += _td(days=1)
-
-        conn.close()
-        # Ensure chronological order
-        formatted_records.sort(key=lambda x: x['date'])
-        return formatted_records
-    return []
 
 
 def add_employee(full_name, position, department, image_path=None, leave_credits=15, is_active=True):

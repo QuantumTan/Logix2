@@ -1,8 +1,5 @@
 # screens/staff_dashboard.py
-import sys
-from PyQt6.QtWidgets import QWidget, QMessageBox, QApplication, QInputDialog, QHBoxLayout, QVBoxLayout, QFrame, QLabel, \
-    QTableWidgetItem, QPushButton, QTableWidget, QHeaderView, QLineEdit
-from PyQt6.QtGui import QFont
+from PyQt6.QtWidgets import QWidget, QMessageBox, QInputDialog, QHBoxLayout, QTableWidgetItem, QPushButton
 from PyQt6.QtCore import Qt
 
 from ..database.db_queries import update_employee, get_employee_by_id, get_employee_details

@@ -1,9 +1,7 @@
 # screens/admin_dashboard.py
-import sys
 from PyQt6.QtWidgets import QWidget, QMessageBox, QHBoxLayout, QPushButton, QTableWidgetItem, QTableWidget, QHeaderView, \
-    QVBoxLayout, QLineEdit, QApplication, QInputDialog, QFrame, QLabel
+    QVBoxLayout, QLineEdit, QInputDialog
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont
 from .base_dashboard import DashboardBase
 from .add_employee_modal import AddEmployeeModal
 from .emp_details import EmployeeDetailsModal
