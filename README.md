@@ -12,25 +12,45 @@ Logix/
 ├─ assets/                  # Static assets (images, etc.)
 │  ├─ logix.png
 │  └─ employees/            # Employee profile images
-└─ src/
-   ├─ database/             # Database layer (modularized)
-   │  ├─ db_config.py       # MySQL connection config
-   │  ├─ db_setup.py        # One-time DB/table bootstrap + migrations
-   │  ├─ utils.py           # Small helpers (e.g., hash_password)
-   │  ├─ employees.py       # Employee CRUD + search
-   │  ├─ auth.py            # Staff/Admin auth + management
-   │  ├─ attendance.py      # Attendance actions + reports aggregations
-   │  └─ db_queries.py      # Thin facade re-exporting the above modules
-   ├─ widgets/              # Reusable UI widgets
-   │  └─ reports_chart.py   # Charts widget (matplotlib-backed, lazy-loaded)
-   └─ screens/              # UI screens
-      ├─ login_screens/
-      │  ├─ admin_login.py
-      │  └─ staff_login.py
-      ├─ base_dashboard.py  # Shared dashboard scaffolding (tabs, reports, tables)
-      ├─ admin_dashboard.py # Admin dashboard (extends base)
-      ├─ staff_dashboard.py # Staff dashboard (extends base)
-      └─ employee_dashboard.py
+├─ src/
+│  ├─ __init__.py
+│  ├─ config.py
+│  ├─ database/             # Database layer (modularized)
+│  │  ├─ __init__.py
+│  │  ├─ attendance.py      # Attendance actions + reports aggregations
+│  │  ├─ auth.py            # Staff/Admin auth + management
+│  │  ├─ db_config.py       # MySQL connection config
+│  │  ├─ db_queries.py      # Thin facade re-exporting domain modules
+│  │  ├─ db_setup.py        # One-time DB/table bootstrap + migrations
+│  │  ├─ employees.py       # Employee CRUD + search
+│  │  └─ utils.py           # Small helpers (e.g., hash_password)
+│  ├─ screens/              # UI screens
+│  │  ├─ __init__.py
+│  │  ├─ add_employee_modal.py
+│  │  ├─ add_staff_modal.py
+│  │  ├─ admin_dashboard.py
+│  │  ├─ base_dashboard.py  # Shared dashboard scaffolding (tabs, reports, tables)
+│  │  ├─ change_password_modal.py
+│  │  ├─ emp_details.py
+│  │  ├─ employee_dashboard.py
+│  │  ├─ reports.py
+│  │  ├─ staff_dashboard.py
+│  │  ├─ components/
+│  │  │  ├─ __init__.py
+│  │  │  ├─ attendance_view.py
+│  │  │  ├─ employee_management_view.py
+│  │  │  └─ reports_view.py
+│  │  └─ login_screens/
+│  │     ├─ __init__.py
+│  │     ├─ admin_login.py
+│  │     └─ staff_login.py
+│  ├─ utils/
+│  │  ├─ __init__.py
+│  │  └─ export_helpers.py
+│  └─ widgets/
+│     ├─ __init__.py
+│     └─ reports_chart.py
+└─ tests/                   # Test suite (place your tests here)
 ```
 
 ## Architecture at a glance
