@@ -4,19 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="424a9e44-a74b-4f9d-8f5e-32cb529758ff" name="Changes" comment="refactored, cleaned code">
-      <change afterPath="$PROJECT_DIR$/src/config.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/screens/components/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/screens/components/attendance_view.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/screens/components/employee_management_view.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/screens/components/reports_view.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/utils/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/utils/export_helpers.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/database/utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/database/utils.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/screens/base_dashboard.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/screens/base_dashboard.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/screens/employee_dashboard.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/screens/employee_dashboard.py" afterDir="false" />
-    </list>
+    <list default="true" id="424a9e44-a74b-4f9d-8f5e-32cb529758ff" name="Changes" comment="Enhance image handling and error management in employee update process" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -168,7 +156,7 @@
       <workItem from="1759395060718" duration="6000" />
       <workItem from="1759403962424" duration="6708000" />
       <workItem from="1759411452768" duration="5274000" />
-      <workItem from="1759448056350" duration="6082000" />
+      <workItem from="1759448056350" duration="6403000" />
     </task>
     <task id="LOCAL-00001" summary="Add core screens and database setup for staff/admin login, employee management, and attendance&#10;&#10;- Implement PyQt6 UI screens: admin/staff login, staff dashboard, add/edit employee/staff modals, change password modal, employee details modal&#10;- Add database setup and config scripts for MySQL (db_setup.py, db_config.py)&#10;- Integrate authentication and employee management logic&#10;- Update workspace.xml for new assets and modules">
       <option name="closed" value="true" />
@@ -322,7 +310,23 @@
       <option name="project" value="LOCAL" />
       <updated>1759452917911</updated>
     </task>
-    <option name="localTasksCounter" value="20" />
+    <task id="LOCAL-00020" summary="Add configuration constants and enhance attendance management UI">
+      <option name="closed" value="true" />
+      <created>1759454300347</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
+      <option name="project" value="LOCAL" />
+      <updated>1759454300347</updated>
+    </task>
+    <task id="LOCAL-00021" summary="Enhance image handling and error management in employee update process">
+      <option name="closed" value="true" />
+      <created>1759454476932</created>
+      <option name="number" value="00021" />
+      <option name="presentableId" value="LOCAL-00021" />
+      <option name="project" value="LOCAL" />
+      <updated>1759454476932</updated>
+    </task>
+    <option name="localTasksCounter" value="22" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -334,12 +338,14 @@
     <MESSAGE value="Enhance employee attendance data handling and fallback mechanisms" />
     <MESSAGE value="Refactor employee ID handling in add modal and remove unused database queries" />
     <MESSAGE value="refactored, cleaned code" />
-    <option name="LAST_COMMIT_MESSAGE" value="refactored, cleaned code" />
+    <MESSAGE value="Add configuration constants and enhance attendance management UI" />
+    <MESSAGE value="Enhance image handling and error management in employee update process" />
+    <option name="LAST_COMMIT_MESSAGE" value="Enhance image handling and error management in employee update process" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/Logix$base_dashboard.coverage" NAME="base_dashboard Coverage Results" MODIFIED="1759057641814" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/screens" />
     <SUITE FILE_PATH="coverage/Logix$test.coverage" NAME="test Coverage Results" MODIFIED="1759231150579" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/screens" />
-    <SUITE FILE_PATH="coverage/Logix$main.coverage" NAME="main Coverage Results" MODIFIED="1759454117427" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/Logix$main.coverage" NAME="main Coverage Results" MODIFIED="1759454403215" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/Logix$admin_dashboard.coverage" NAME="admin_dashboard Coverage Results" MODIFIED="1759231192240" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/screens" />
   </component>
 </project>
