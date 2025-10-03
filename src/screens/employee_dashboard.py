@@ -7,6 +7,7 @@ from PyQt6.QtCore import Qt, QTimer, QTime, QDate
 from PyQt6.QtGui import QFont, QPixmap
 from .emp_details import EmployeeDetailsModal
 from ..database.db_queries import get_today_attendance, get_today_stats, get_employee_by_id, get_employee_details, employee_check_in, employee_check_out
+from ..config import ATTENDANCE_REFRESH_MS, TIME_TICK_MS, TIME_DISPLAY_FORMAT, DATE_DISPLAY_FORMAT
 
 class AttendanceDashboard(QWidget):
     def __init__(self):
@@ -64,7 +65,7 @@ class AttendanceDashboard(QWidget):
         today_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         today_label.setStyleSheet("color: white; background-color: transparent;")
 
-        self.date_label = QLabel(QDate.currentDate().toString("MMMM d, yyyy"))
+        self.date_label = QLabel(QDate.currentDate().toString(DATE_DISPLAY_FORMAT))
         self.date_label.setFont(QFont("Inter", 12))
         self.date_label.setStyleSheet("color: white; background-color: transparent;")
 
@@ -188,7 +189,7 @@ class AttendanceDashboard(QWidget):
         # Timer to update time
         timer = QTimer(self)
         timer.timeout.connect(self.update_time)
-        timer.start(1000)
+        timer.start(TIME_TICK_MS)
 
         # Connect staff/admin login buttons
         staff_btn.clicked.connect(self.show_staff_login)
@@ -199,7 +200,7 @@ class AttendanceDashboard(QWidget):
 
         # refresh to keep in sync with staff adn admin
         self.attendance_refresh_timer = QTimer(self)
-        self.attendance_refresh_timer.setInterval(3000)
+        self.attendance_refresh_timer.setInterval(ATTENDANCE_REFRESH_MS)
         self.attendance_refresh_timer.timeout.connect(self.load_attendance_data)
         self.attendance_refresh_timer.start()
 
@@ -228,7 +229,7 @@ class AttendanceDashboard(QWidget):
         return card, number_label
 
     def update_time(self):
-        current_time = QTime.currentTime().toString("hh:mm:ss AP")
+        current_time = QTime.currentTime().toString(TIME_DISPLAY_FORMAT)
         self.time_label.setText(f"Current Time\n{current_time}")
 
     def load_attendance_data(self):

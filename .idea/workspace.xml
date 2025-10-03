@@ -4,20 +4,18 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="424a9e44-a74b-4f9d-8f5e-32cb529758ff" name="Changes" comment="Refactor employee ID handling in add modal and remove unused database queries">
-      <change afterPath="$PROJECT_DIR$/src/database/attendance.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/database/auth.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/database/employees.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/database/utils.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/widgets/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/widgets/reports_chart.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+    <list default="true" id="424a9e44-a74b-4f9d-8f5e-32cb529758ff" name="Changes" comment="refactored, cleaned code">
+      <change afterPath="$PROJECT_DIR$/src/config.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/screens/components/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/screens/components/attendance_view.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/screens/components/employee_management_view.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/screens/components/reports_view.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/utils/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/utils/export_helpers.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/database/db_queries.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/database/db_queries.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/screens/admin_dashboard.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/screens/admin_dashboard.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/database/utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/database/utils.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/screens/base_dashboard.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/screens/base_dashboard.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/screens/staff_dashboard.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/screens/staff_dashboard.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/screens/employee_dashboard.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/screens/employee_dashboard.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -170,7 +168,7 @@
       <workItem from="1759395060718" duration="6000" />
       <workItem from="1759403962424" duration="6708000" />
       <workItem from="1759411452768" duration="5274000" />
-      <workItem from="1759448056350" duration="4699000" />
+      <workItem from="1759448056350" duration="6082000" />
     </task>
     <task id="LOCAL-00001" summary="Add core screens and database setup for staff/admin login, employee management, and attendance&#10;&#10;- Implement PyQt6 UI screens: admin/staff login, staff dashboard, add/edit employee/staff modals, change password modal, employee details modal&#10;- Add database setup and config scripts for MySQL (db_setup.py, db_config.py)&#10;- Integrate authentication and employee management logic&#10;- Update workspace.xml for new assets and modules">
       <option name="closed" value="true" />
@@ -316,7 +314,15 @@
       <option name="project" value="LOCAL" />
       <updated>1759451100128</updated>
     </task>
-    <option name="localTasksCounter" value="19" />
+    <task id="LOCAL-00019" summary="refactored, cleaned code">
+      <option name="closed" value="true" />
+      <created>1759452917911</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1759452917911</updated>
+    </task>
+    <option name="localTasksCounter" value="20" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -327,12 +333,13 @@
     <MESSAGE value="Refine dashboard UI styles and update employee details placeholders&#10;&#10;- Standardize button styles and active/inactive tab highlighting across dashboards&#10;- Adjust window geometry for admin and employee dashboards&#10;- Update employee details modal to use sample placeholders and transparent borders&#10;- Improve code formatting and minor comments for clarity&#10;- Update workspace.xml for recent changes" />
     <MESSAGE value="Enhance employee attendance data handling and fallback mechanisms" />
     <MESSAGE value="Refactor employee ID handling in add modal and remove unused database queries" />
-    <option name="LAST_COMMIT_MESSAGE" value="Refactor employee ID handling in add modal and remove unused database queries" />
+    <MESSAGE value="refactored, cleaned code" />
+    <option name="LAST_COMMIT_MESSAGE" value="refactored, cleaned code" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/Logix$base_dashboard.coverage" NAME="base_dashboard Coverage Results" MODIFIED="1759057641814" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/screens" />
     <SUITE FILE_PATH="coverage/Logix$test.coverage" NAME="test Coverage Results" MODIFIED="1759231150579" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/screens" />
-    <SUITE FILE_PATH="coverage/Logix$main.coverage" NAME="main Coverage Results" MODIFIED="1759452854392" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/Logix$main.coverage" NAME="main Coverage Results" MODIFIED="1759454117427" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/Logix$admin_dashboard.coverage" NAME="admin_dashboard Coverage Results" MODIFIED="1759231192240" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/screens" />
   </component>
 </project>
