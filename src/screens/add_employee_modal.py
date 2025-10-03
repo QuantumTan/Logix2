@@ -176,18 +176,36 @@ class AddEmployeeModal(QDialog):
             except Exception:
                 new_id = self._generate_id()
         else:
-            new_id = self._generate_id()
+            # In add mode, let the DB assign the ID. We emit no id and caller will handle post-insert asset naming.
+            new_id = None
         emp = {"id": new_id, "name": name, "department": dept, "position": pos, "image_path": self._selected_image_path}
         self.employee_added.emit(emp)
         self.accept()
 
     def _generate_id(self) -> int:
-        parent = self.parent()
-        if parent and hasattr(parent, "employee_data") and isinstance(parent.employee_data, dict) and parent.employee_data:
-            try:
-                nums = [int(k) for k in parent.employee_data.keys()]
-                base = max(nums) + 1 if nums else 10000
-                return int(base)
-            except Exception:
-                return 10000
-        return 10000
+        """Generate a new unique employee ID by asking the database for MAX+1 over all rows."""
+        try:
+            from ..database.db_queries import get_next_employee_id
+            new_id = int(get_next_employee_id())
+            print(f"[_generate_id] New ID from DB helper: {new_id}")
+            return new_id
+        except Exception as e:
+            print(f"[_generate_id] Error generating ID from database: {e}")
+            import traceback
+            traceback.print_exc()
+            # Fallback to parent's employee_data
+            parent = self.parent()
+            if parent and hasattr(parent, "employee_data") and isinstance(parent.employee_data, dict) and parent.employee_data:
+                try:
+                    nums = [int(k) for k in parent.employee_data.keys()]
+                    if nums:
+                        max_id = max(nums)
+                        new_id = max_id + 1
+                        print(f"[_generate_id] Fallback - Generated ID from parent data: {new_id}")
+                        return int(new_id)
+                    else:
+                        return 10000
+                except Exception as ex:
+                    print(f"[_generate_id] Fallback also failed: {ex}")
+                    return 10000
+            return 10000

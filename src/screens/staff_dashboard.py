@@ -108,44 +108,41 @@ class StaffDashboard(DashboardBase):
 
     def _handle_add_employee(self, emp):
         """Persist a newly added employee and refresh the table.
-        emp: dict with keys id, name, department, position, image_path
+        emp: dict with keys name, department, position, image_path (id from modal is ignored)
         """
         try:
-            from ..database.db_queries import add_employee
+            from ..database.db_queries import add_employee, set_employee_image_path
             import os, shutil
             image_dir = 'assets/employees'
             os.makedirs(image_dir, exist_ok=True)
 
-            img_path = emp.get('image_path')
-            saved_image_path = None
-            if img_path and os.path.isfile(img_path):
-                ext = os.path.splitext(img_path)[1]
-                eid = str(emp['id'])
-                saved_image_path = os.path.join(image_dir, f"{eid}{ext}")
-                try:
-                    shutil.copy(img_path, saved_image_path)
-                except Exception as e:
-                    print(f"[StaffDashboard] Warning: failed to copy image: {e}")
-                    saved_image_path = None
-
-            ok = add_employee(
-                employee_id=int(emp['id']),
+            # First, insert employee to get DB-assigned ID
+            new_id = add_employee(
                 full_name=emp['name'],
                 position=emp['position'],
                 department=emp['department'],
-                image_path=saved_image_path,
                 leave_credits=15,
                 is_active=True
             )
-            if not ok:
-                from PyQt6.QtWidgets import QMessageBox
+            if not new_id:
                 QMessageBox.critical(self, "Error", "Failed to add employee to database.")
                 return
+
+            # If an image is provided, copy it and update image_path
+            img_path = emp.get('image_path')
+            if img_path and os.path.isfile(img_path):
+                ext = os.path.splitext(img_path)[1]
+                saved_image_path = os.path.join(image_dir, f"{new_id}{ext}")
+                try:
+                    shutil.copy(img_path, saved_image_path)
+                    # Update DB with the saved image path
+                    set_employee_image_path(new_id, saved_image_path)
+                except Exception as e:
+                    print(f"[StaffDashboard] Warning: failed to copy image: {e}")
 
             # Refresh in-memory and table
             self.load_employee_data()
             self.load_employee_table()
-            from PyQt6.QtWidgets import QMessageBox
             QMessageBox.information(self, "Success", f"Employee {emp['name']} added successfully!")
         except Exception as e:
             print(f"[StaffDashboard] Error adding employee: {e}")

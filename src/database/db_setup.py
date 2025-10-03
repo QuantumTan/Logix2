@@ -23,7 +23,7 @@ def create_database_and_tables():
         # Create employees table with leave_credits and is_active columns
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS employees (
-                employee_id INT PRIMARY KEY,
+                employee_id INT PRIMARY KEY AUTO_INCREMENT,
                 full_name VARCHAR(100) NOT NULL,
                 position VARCHAR(50) NOT NULL,
                 department VARCHAR(50) NOT NULL,
@@ -175,6 +175,33 @@ def create_database_and_tables():
                 """)
             finally:
                 cursor.execute("SET FOREIGN_KEY_CHECKS=1")
+
+        # Ensure employee_id is AUTO_INCREMENT and set next AUTO_INCREMENT value beyond current MAX(id)
+        try:
+            # Check if column is already AUTO_INCREMENT
+            cursor.execute(
+                """
+                SELECT EXTRA FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = 'logix' AND TABLE_NAME = 'employees' AND COLUMN_NAME = 'employee_id'
+                """
+            )
+            extra = cursor.fetchone()
+            is_auto = False
+            if extra:
+                # Depending on cursor type, extra may be tuple or dict
+                is_auto = ('auto_increment' in (extra[0].lower() if isinstance(extra, tuple) else str(extra.get('EXTRA','')).lower()))
+            if not is_auto:
+                cursor.execute("ALTER TABLE employees MODIFY employee_id INT NOT NULL AUTO_INCREMENT")
+
+            # Set AUTO_INCREMENT to max(employee_id)+1 or 10000 if table empty
+            cursor.execute("SELECT COALESCE(MAX(employee_id), 9999) + 1 FROM employees")
+            next_id = cursor.fetchone()
+            next_val = next_id[0] if isinstance(next_id, tuple) else list(next_id.values())[0]
+            if next_val is None or int(next_val) < 10000:
+                next_val = 10000
+            cursor.execute(f"ALTER TABLE employees AUTO_INCREMENT = {int(next_val)}")
+        except Exception as e:
+            print(f"[db_setup] Warning: failed to enforce AUTO_INCREMENT on employees.employee_id: {e}")
 
         connection.commit()
         print("Database setup completed successfully.")

@@ -26,6 +26,39 @@ def get_all_employees():
     return []
 
 
+def get_next_employee_id(min_start: int = 10000) -> int:
+    """Return the next available employee_id using MAX(employee_id)+1 across ALL rows.
+    Ensures the starting range at min_start (default 10000).
+    Fallbacks to min_start on any error.
+    """
+    conn = get_db_connection()
+    if conn:
+        try:
+            with conn.cursor() as cursor:
+                # Use parameter for min_start to avoid SQL injection and to compute default base
+                cursor.execute(
+                    "SELECT COALESCE(MAX(employee_id), %s - 1) + 1 AS next_id FROM employees",
+                    (min_start,)
+                )
+                row = cursor.fetchone()
+                # row may be dict due to DictCursor
+                next_val = None
+                if row is not None:
+                    next_val = row.get('next_id') if isinstance(row, dict) else (row[0] if len(row) > 0 else None)
+                if next_val is None:
+                    return min_start
+                try:
+                    next_int = int(next_val)
+                except Exception:
+                    return min_start
+                return next_int if next_int >= min_start else min_start
+        except Exception:
+            return min_start
+        finally:
+            conn.close()
+    return min_start
+
+
 def update_employee(employee_id, full_name, position, department, image_path=None, leave_credits=None):
     """Update an existing employee."""
     conn = get_db_connection()
@@ -926,24 +959,55 @@ def get_employee_monthly_attendance_details(employee_id, start_date, end_date):
     return []
 
 
-def add_employee(employee_id, full_name, position, department, image_path=None, leave_credits=15, is_active=True):
-    """Insert a new employee. Returns True on success, False otherwise."""
+def add_employee(full_name, position, department, image_path=None, leave_credits=15, is_active=True):
+    """Insert a new employee letting the DB assign AUTO_INCREMENT ID.
+    Returns the new employee_id (int) on success, or None on failure.
+
+    Note: image_path is not stored during insert because we need the new id to name the asset file.
+    Call set_employee_image_path(new_id, path) after copying the file.
+    """
     conn = get_db_connection()
-    if conn:
-        try:
-            with conn.cursor() as cursor:
-                cursor.execute(
-                    """
-                    INSERT INTO employees (employee_id, full_name, position, department, image_path, leave_credits, is_active, created_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
-                    """,
-                    (employee_id, full_name, position, department, image_path, leave_credits, is_active)
-                )
-                conn.commit()
+    if not conn:
+        return None
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO employees (full_name, position, department, leave_credits, is_active, created_at)
+                VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+                """,
+                (full_name, position, department, leave_credits, is_active)
+            )
+            conn.commit()
+            new_id = cursor.lastrowid
+            try:
+                return int(new_id) if new_id is not None else None
+            except Exception:
+                return None
+    except Exception as e:
+        print(f"[add_employee] Error adding employee: {e}")
+        conn.rollback()
+        return None
+    finally:
+        conn.close()
+
+
+def set_employee_image_path(employee_id: int, image_path: str) -> bool:
+    """Update only the image_path for an employee."""
+    conn = get_db_connection()
+    if not conn:
+        return False
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "UPDATE employees SET image_path = %s WHERE employee_id = %s",
+                (image_path, employee_id)
+            )
+            conn.commit()
             return True
-        except Exception:
-            conn.rollback()
-            return False
-        finally:
-            conn.close()
-    return False
+    except Exception as e:
+        print(f"[set_employee_image_path] Error updating image_path for {employee_id}: {e}")
+        conn.rollback()
+        return False
+    finally:
+        conn.close()
