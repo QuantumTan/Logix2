@@ -1,7 +1,7 @@
 # screens/add_employee_modal.py
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QFrame, QLabel, QLineEdit,
-    QPushButton, QFileDialog, QWidget
+    QPushButton, QFileDialog, QWidget, QMessageBox
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont, QPixmap
@@ -170,24 +170,16 @@ class AddEmployeeModal(QDialog):
                     widget.setStyleSheet("QLineEdit{background:#fff1f2;border:2px solid #ef4444;border-radius:10px;padding:6px 10px;}")
             return
 
-        if self.mode == "edit" and self.initial.get("id") is not None:
+        if self.mode == "edit":
+            # In edit mode, a valid existing ID is required
             try:
-                new_id = int(self.initial["id"])
+                new_id = int(self.initial.get("id"))
             except Exception:
-                new_id = self._generate_id()
+                QMessageBox.critical(self, "Error", "Missing or invalid employee ID for edit.")
+                return
         else:
-            new_id = self._generate_id()
+            # In add mode, let the DB assign the ID. We emit no id and caller will handle post-insert asset naming.
+            new_id = None
         emp = {"id": new_id, "name": name, "department": dept, "position": pos, "image_path": self._selected_image_path}
         self.employee_added.emit(emp)
         self.accept()
-
-    def _generate_id(self) -> int:
-        parent = self.parent()
-        if parent and hasattr(parent, "employee_data") and isinstance(parent.employee_data, dict) and parent.employee_data:
-            try:
-                nums = [int(k) for k in parent.employee_data.keys()]
-                base = max(nums) + 1 if nums else 10000
-                return int(base)
-            except Exception:
-                return 10000
-        return 10000

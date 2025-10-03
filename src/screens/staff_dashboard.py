@@ -1,8 +1,5 @@
 # screens/staff_dashboard.py
-import sys
-from PyQt6.QtWidgets import QWidget, QMessageBox, QApplication, QInputDialog, QHBoxLayout, QVBoxLayout, QFrame, QLabel, \
-    QTableWidgetItem, QPushButton, QTableWidget, QHeaderView, QLineEdit
-from PyQt6.QtGui import QFont
+from PyQt6.QtWidgets import QWidget, QMessageBox, QInputDialog, QHBoxLayout, QTableWidgetItem, QPushButton
 from PyQt6.QtCore import Qt
 
 from ..database.db_queries import update_employee, get_employee_by_id, get_employee_details
@@ -64,21 +61,6 @@ class StaffDashboard(DashboardBase):
             h.addStretch()
             self.table.setCellWidget(row, 6, action_widget)
 
-    def show_employee_details(self, emp_id):
-        basic = get_employee_by_id(emp_id)
-        if basic:
-            details = get_employee_details(emp_id)
-            employee_data = {
-                'id': basic['employee_id'],
-                'name': basic['full_name'],
-                'position': basic['position'],
-                'department': basic['department'],
-                'image_path': basic.get('image_path'),
-                **details
-            }
-            modal = EmployeeDetailsModal(employee_data, self)
-            modal.exec()
-
     def show_add_employee_modal(self):
         try:
             print("[StaffDashboard] Opening AddEmployeeModal (non-blocking)...")
@@ -108,44 +90,41 @@ class StaffDashboard(DashboardBase):
 
     def _handle_add_employee(self, emp):
         """Persist a newly added employee and refresh the table.
-        emp: dict with keys id, name, department, position, image_path
+        emp: dict with keys name, department, position, image_path (id from modal is ignored)
         """
         try:
-            from ..database.db_queries import add_employee
+            from ..database.db_queries import add_employee, set_employee_image_path
             import os, shutil
             image_dir = 'assets/employees'
             os.makedirs(image_dir, exist_ok=True)
 
-            img_path = emp.get('image_path')
-            saved_image_path = None
-            if img_path and os.path.isfile(img_path):
-                ext = os.path.splitext(img_path)[1]
-                eid = str(emp['id'])
-                saved_image_path = os.path.join(image_dir, f"{eid}{ext}")
-                try:
-                    shutil.copy(img_path, saved_image_path)
-                except Exception as e:
-                    print(f"[StaffDashboard] Warning: failed to copy image: {e}")
-                    saved_image_path = None
-
-            ok = add_employee(
-                employee_id=int(emp['id']),
+            # First, insert employee to get DB-assigned ID
+            new_id = add_employee(
                 full_name=emp['name'],
                 position=emp['position'],
                 department=emp['department'],
-                image_path=saved_image_path,
                 leave_credits=15,
                 is_active=True
             )
-            if not ok:
-                from PyQt6.QtWidgets import QMessageBox
+            if not new_id:
                 QMessageBox.critical(self, "Error", "Failed to add employee to database.")
                 return
+
+            # If an image is provided, copy it and update image_path
+            img_path = emp.get('image_path')
+            if img_path and os.path.isfile(img_path):
+                ext = os.path.splitext(img_path)[1]
+                saved_image_path = os.path.join(image_dir, f"{new_id}{ext}")
+                try:
+                    shutil.copy(img_path, saved_image_path)
+                    # Update DB with the saved image path
+                    set_employee_image_path(new_id, saved_image_path)
+                except Exception as e:
+                    print(f"[StaffDashboard] Warning: failed to copy image: {e}")
 
             # Refresh in-memory and table
             self.load_employee_data()
             self.load_employee_table()
-            from PyQt6.QtWidgets import QMessageBox
             QMessageBox.information(self, "Success", f"Employee {emp['name']} added successfully!")
         except Exception as e:
             print(f"[StaffDashboard] Error adding employee: {e}")
@@ -155,14 +134,32 @@ class StaffDashboard(DashboardBase):
         import shutil
         image_dir = 'assets/employees'
         os.makedirs(image_dir, exist_ok=True)
-        if emp.get('image_path') and not emp['image_path'].startswith(image_dir):
-            ext = os.path.splitext(emp['image_path'])[1]
-            new_path = os.path.join(image_dir, f"{str(emp['id'])}{ext}")
-            shutil.copy(emp['image_path'], new_path)
-            emp['image_path'] = new_path
-        update_employee(emp['id'], emp['name'], emp['position'], emp['department'], emp['image_path'])
+        # Copy new image into our assets dir if a new local path was picked
+        try:
+            if emp.get('image_path') and not str(emp['image_path']).startswith(image_dir):
+                ext = os.path.splitext(emp['image_path'])[1]
+                new_path = os.path.join(image_dir, f"{str(emp['id'])}{ext}")
+                try:
+                    shutil.copy(emp['image_path'], new_path)
+                    emp['image_path'] = new_path
+                except Exception as copy_err:
+                    print(f"[StaffDashboard] Warning: failed to copy new image for employee {emp.get('id')}: {copy_err}")
+                    # Keep original path reference if copy fails
+        except Exception as e:
+            print(f"[StaffDashboard] Warning preparing image for update: {e}")
+
+        # Update DB record
+        try:
+            update_employee(emp['id'], emp['name'], emp['position'], emp['department'], emp.get('image_path'))
+        except Exception as e:
+            print(f"[StaffDashboard] Error updating employee: {e}")
+            QMessageBox.critical(self, "Error", "Failed to update employee. Please try again.")
+            return
+
+        # Refresh table and show success
         self.load_employee_data()
         self.load_employee_table()
+        QMessageBox.information(self, "Success", f"Employee {emp['name']} updated successfully!")
 
 
     def handle_edit_leave(self, emp_id):

@@ -1,9 +1,7 @@
 # screens/admin_dashboard.py
-import sys
 from PyQt6.QtWidgets import QWidget, QMessageBox, QHBoxLayout, QPushButton, QTableWidgetItem, QTableWidget, QHeaderView, \
-    QVBoxLayout, QLineEdit, QApplication, QInputDialog, QFrame, QLabel
+    QVBoxLayout, QLineEdit, QInputDialog
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont
 from .base_dashboard import DashboardBase
 from .add_employee_modal import AddEmployeeModal
 from .emp_details import EmployeeDetailsModal
@@ -236,21 +234,6 @@ class AdminDashboard(DashboardBase):
             return
         super().switch_tab(tab_name)
 
-    def show_employee_details(self, emp_id):
-        basic = get_employee_by_id(emp_id)
-        if basic:
-            details = get_employee_details(emp_id)
-            employee_data = {
-                'id': basic['employee_id'],
-                'name': basic['full_name'],
-                'position': basic['position'],
-                'department': basic['department'],
-                'image_path': basic.get('image_path'),
-                **details
-            }
-            modal = EmployeeDetailsModal(employee_data, self)
-            modal.exec()
-
     def show_add_employee_modal(self):
         try:
             print("[AdminDashboard] Opening AddEmployeeModal (non-blocking)...")
@@ -269,43 +252,52 @@ class AdminDashboard(DashboardBase):
     def _handle_add_employee(self, emp):
         """Persist a newly added employee (admin) and refresh the table."""
         try:
-            from ..database.db_queries import add_employee
+            from ..database.db_queries import add_employee, set_employee_image_path
             import os, shutil
+
+            print(f"[AdminDashboard] Adding employee: {emp}")
+
             image_dir = 'assets/employees'
             os.makedirs(image_dir, exist_ok=True)
 
-            img_path = emp.get('image_path')
-            saved_image_path = None
-            if img_path and os.path.isfile(img_path):
-                ext = os.path.splitext(img_path)[1]
-                eid = str(emp['id'])
-                saved_image_path = os.path.join(image_dir, f"{eid}{ext}")
-                try:
-                    shutil.copy(img_path, saved_image_path)
-                except Exception as e:
-                    print(f"[AdminDashboard] Warning: failed to copy image: {e}")
-                    saved_image_path = None
-
-            ok = add_employee(
-                employee_id=int(emp['id']),
+            # Insert first to get DB-generated employee_id
+            new_id = add_employee(
                 full_name=emp['name'],
                 position=emp['position'],
                 department=emp['department'],
-                image_path=saved_image_path,
                 leave_credits=15,
                 is_active=True
             )
-            if not ok:
+            if not new_id:
                 from PyQt6.QtWidgets import QMessageBox
-                QMessageBox.critical(self, "Error", "Failed to add employee to database.")
+                QMessageBox.critical(self, "Error",
+                    "Failed to add employee to database.\n\n"
+                    "Check the console for detailed error messages.")
                 return
 
+            # Copy image (if any) and update image_path
+            img_path = emp.get('image_path')
+            if img_path and os.path.isfile(img_path):
+                ext = os.path.splitext(img_path)[1]
+                saved_image_path = os.path.join(image_dir, f"{new_id}{ext}")
+                try:
+                    shutil.copy(img_path, saved_image_path)
+                    print(f"[AdminDashboard] Image copied to: {saved_image_path}")
+                    set_employee_image_path(new_id, saved_image_path)
+                except Exception as e:
+                    print(f"[AdminDashboard] Warning: failed to copy image: {e}")
+
+            print(f"[AdminDashboard] Employee added successfully, refreshing table...")
             self.load_employee_data()
             self.load_employee_table()
             from PyQt6.QtWidgets import QMessageBox
             QMessageBox.information(self, "Success", f"Employee {emp['name']} added successfully!")
         except Exception as e:
             print(f"[AdminDashboard] Error adding employee: {e}")
+            import traceback
+            traceback.print_exc()
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.critical(self, "Error", f"Failed to add employee:\n{str(e)}")
 
     def handle_edit_employee(self, emp_id):
         initial = self.employee_data[emp_id]
