@@ -134,14 +134,32 @@ class StaffDashboard(DashboardBase):
         import shutil
         image_dir = 'assets/employees'
         os.makedirs(image_dir, exist_ok=True)
-        if emp.get('image_path') and not emp['image_path'].startswith(image_dir):
-            ext = os.path.splitext(emp['image_path'])[1]
-            new_path = os.path.join(image_dir, f"{str(emp['id'])}{ext}")
-            shutil.copy(emp['image_path'], new_path)
-            emp['image_path'] = new_path
-        update_employee(emp['id'], emp['name'], emp['position'], emp['department'], emp['image_path'])
+        # Copy new image into our assets dir if a new local path was picked
+        try:
+            if emp.get('image_path') and not str(emp['image_path']).startswith(image_dir):
+                ext = os.path.splitext(emp['image_path'])[1]
+                new_path = os.path.join(image_dir, f"{str(emp['id'])}{ext}")
+                try:
+                    shutil.copy(emp['image_path'], new_path)
+                    emp['image_path'] = new_path
+                except Exception as copy_err:
+                    print(f"[StaffDashboard] Warning: failed to copy new image for employee {emp.get('id')}: {copy_err}")
+                    # Keep original path reference if copy fails
+        except Exception as e:
+            print(f"[StaffDashboard] Warning preparing image for update: {e}")
+
+        # Update DB record
+        try:
+            update_employee(emp['id'], emp['name'], emp['position'], emp['department'], emp.get('image_path'))
+        except Exception as e:
+            print(f"[StaffDashboard] Error updating employee: {e}")
+            QMessageBox.critical(self, "Error", "Failed to update employee. Please try again.")
+            return
+
+        # Refresh table and show success
         self.load_employee_data()
         self.load_employee_table()
+        QMessageBox.information(self, "Success", f"Employee {emp['name']} updated successfully!")
 
 
     def handle_edit_leave(self, emp_id):
