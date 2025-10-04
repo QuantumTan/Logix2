@@ -34,8 +34,8 @@ class ReportsChartWidget(QWidget):
             self._Figure = Figure
             self._plt = plt
             MATPLOTLIB_AVAILABLE = True
-        except Exception as e:
-            print(f"Matplotlib not available or failed to initialize: {e}")
+        except Exception:
+            # Matplotlib not available, will use fallback
             MATPLOTLIB_AVAILABLE = False
             self._FigureCanvas = None
             self._Figure = None
@@ -47,8 +47,8 @@ class ReportsChartWidget(QWidget):
                 self.canvas = self._FigureCanvas(self.figure)
                 layout.addWidget(self.canvas)
                 self.load_static_demo_data()
-            except Exception as e:
-                print(f"Chart widget creation failed: {e}")
+            except Exception:
+                # Chart widget creation failed, use fallback
                 self.figure = None
                 self.canvas = None
                 self._create_fallback_widget(layout)
@@ -128,4 +128,3 @@ class ReportsChartWidget(QWidget):
             print(f"Error closing ReportsChartWidget: {e}")
         super().closeEvent(event)
 # Widgets package for reusable UI components
-

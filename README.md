@@ -33,7 +33,6 @@ Logix/
 │  │  ├─ change_password_modal.py
 │  │  ├─ emp_details.py
 │  │  ├─ employee_dashboard.py
-│  │  ├─ reports.py
 │  │  ├─ staff_dashboard.py
 │  │  ├─ components/
 │  │  │  ├─ __init__.py

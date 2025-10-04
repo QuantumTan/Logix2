@@ -79,8 +79,8 @@ def set_employee_image_path(employee_id: int, image_path: str) -> bool:
             )
             conn.commit()
             return True
-    except Exception as e:
-        print(f"[set_employee_image_path] Error updating image_path for {employee_id}: {e}")
+    except Exception:
+        # Error updating image path
         conn.rollback()
         return False
     finally:
@@ -152,4 +152,3 @@ def search_employees(query: str, limit: int = 50) -> list[dict]:
             return cursor.fetchall() or []
     finally:
         conn.close()
-

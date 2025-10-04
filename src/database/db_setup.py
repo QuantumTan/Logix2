@@ -201,12 +201,10 @@ def create_database_and_tables():
                 next_val = 10000
             cursor.execute(f"ALTER TABLE employees AUTO_INCREMENT = {int(next_val)}")
         except Exception as e:
-            print(f"[db_setup] Warning: failed to enforce AUTO_INCREMENT on employees.employee_id: {e}")
+            # Silent fail for AUTO_INCREMENT setup - not critical
+            pass
 
         connection.commit()
-        print("Database setup completed successfully.")
-        print("- is_active columns added/verified for employees and staff_users")
-        print("- All existing records set to active")
 
     except pymysql.Error as e:
         print(f"Error during database setup: {e}")

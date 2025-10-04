@@ -6,6 +6,23 @@ from datetime import datetime, date, timedelta
 from .db_config import get_db_connection
 
 
+# --- Helper function for counting weekdays ---
+
+def _count_weekdays(start: date, end: date) -> int:
+    """Count weekdays (Mon-Fri) between start and end dates (inclusive)."""
+    if start > end:
+        return 0
+    d = start
+    cnt = 0
+    one = timedelta(days=1)
+    # Include both start and end dates
+    while d <= end:
+        if d.weekday() < 5:  # Monday=0, Friday=4
+            cnt += 1
+        d += one
+    return cnt
+
+
 # --- Attendance operations ---
 
 def employee_check_in(employee_id: int) -> bool:
@@ -94,6 +111,11 @@ def get_employee_details(employee_id: int, period: str = 'month') -> dict:
                 return {}
             leave_credits = res['leave_credits'] if res else 15
             employee_start_date = res.get('created_at')
+
+            # Convert to date if it's a datetime
+            if employee_start_date and hasattr(employee_start_date, 'date'):
+                employee_start_date = employee_start_date.date()
+
             if not employee_start_date:
                 cursor.execute(
                     """
@@ -104,43 +126,22 @@ def get_employee_details(employee_id: int, period: str = 'month') -> dict:
                     (employee_id,)
                 )
                 first_record = cursor.fetchone()
-                employee_start_date = first_record['first_attendance'] if first_record and first_record['first_attendance'] else datetime.now().date()
+                employee_start_date = first_record['first_attendance'] if first_record and first_record['first_attendance'] else date.today()
 
             if period == 'month':
-                cursor.execute(
-                    """
-                    SELECT GREATEST(
-                        DATE_SUB(CURDATE(), INTERVAL 1 MONTH), DATE(%s)
-                    ) as effective_start_date
-                    """,
-                    (employee_start_date,)
-                )
-                effective_start = cursor.fetchone()['effective_start_date']
+                # Calculate effective start date (1 month ago or employee start date, whichever is later)
+                today = date.today()
+                one_month_ago = today - timedelta(days=30)
+                effective_start = max(one_month_ago, employee_start_date)
+
+                # Use Python to count working days instead of complex SQL
+                working_days = _count_weekdays(effective_start, today)
+
                 where_period = "AND date >= %s"
                 date_params = (employee_id, effective_start)
             else:
                 where_period = ""
                 date_params = (employee_id,)
-
-            if period == 'month':
-                cursor.execute(
-                    """
-                    SELECT COUNT(*) as working_days
-                    FROM (
-                        SELECT DATE_ADD(%s, INTERVAL seq.seq DAY) as work_date
-                        FROM (
-                            SELECT 0 as seq UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9 UNION
-                            SELECT 10 UNION SELECT 11 UNION SELECT 12 UNION SELECT 13 UNION SELECT 14 UNION SELECT 15 UNION SELECT 16 UNION SELECT 17 UNION SELECT 18 UNION SELECT 19 UNION
-                            SELECT 20 UNION SELECT 21 UNION SELECT 22 UNION SELECT 23 UNION SELECT 24 UNION SELECT 25 UNION SELECT 26 UNION SELECT 27 UNION SELECT 28 UNION SELECT 29 UNION SELECT 30
-                        ) seq
-                        WHERE DATE_ADD(%s, INTERVAL seq.seq DAY) <= CURDATE()
-                          AND WEEKDAY(DATE_ADD(%s, INTERVAL seq.seq DAY)) < 5
-                    ) working_dates
-                    """,
-                    (effective_start, effective_start, effective_start)
-                )
-                working_days = cursor.fetchone()['working_days'] or 0
-            else:
                 working_days = 30
 
             cursor.execute(
@@ -185,9 +186,9 @@ def get_employee_details(employee_id: int, period: str = 'month') -> dict:
             present_days = res['present_days'] or 0
 
             if period == 'month':
-                attendance_rate = (present_days / working_days * 100) if working_days > 0 else 100
+                attendance_rate = (present_days / working_days * 100) if working_days > 0 else 0
             else:
-                attendance_rate = (present_days / total_days * 100) if total_days > 0 else 100
+                attendance_rate = (present_days / total_days * 100) if total_days > 0 else 0
 
             avg_hours = hours / present_days if present_days > 0 else 0
 
@@ -320,7 +321,7 @@ def get_employee_monthly_hours(employee_id: str, year: int) -> list[dict]:
                 SELECT 
                     MONTH(date) AS month,
                     ROUND(SUM(TIMESTAMPDIFF(MINUTE, check_in, IFNULL(check_out, NOW()))/60.0), 2) AS hours,
-                    COUNT(CASE WHEN status IN ('Present', 'Late') THEN 1 END) AS worked_days,
+                    COUNT(DISTINCT CASE WHEN status IN ('Present', 'Late') THEN date END) AS worked_days,
                     COUNT(DISTINCT date) AS attended_days,
                     ROUND(SUM(CASE 
                         WHEN TIMESTAMPDIFF(MINUTE, check_in, IFNULL(check_out, NOW()))/60.0 > 8 
@@ -393,7 +394,7 @@ def get_all_employees_hours_for_month(year: int, month: int) -> list[dict]:
                     e.full_name,
                     e.created_at,
                     ROUND(COALESCE(SUM(TIMESTAMPDIFF(MINUTE, a.check_in, IFNULL(a.check_out, NOW()))/60.0), 0), 2) AS hours,
-                    COUNT(CASE WHEN a.status IN ('Present', 'Late') THEN 1 END) AS worked_days,
+                    COUNT(DISTINCT CASE WHEN a.status IN ('Present', 'Late') THEN a.date END) AS worked_days,
                     COUNT(DISTINCT a.date) AS attended_days,
                     ROUND(COALESCE(SUM(CASE 
                         WHEN TIMESTAMPDIFF(MINUTE, a.check_in, IFNULL(a.check_out, NOW()))/60.0 > 8 
@@ -471,7 +472,7 @@ def get_all_employees_hours_for_year(year: int) -> list[dict]:
                     e.full_name,
                     e.created_at,
                     ROUND(COALESCE(SUM(TIMESTAMPDIFF(MINUTE, a.check_in, IFNULL(a.check_out, NOW()))/60.0), 0), 2) AS hours,
-                    COUNT(CASE WHEN a.status IN ('Present', 'Late') THEN 1 END) AS worked_days,
+                    COUNT(DISTINCT CASE WHEN a.status IN ('Present', 'Late') THEN a.date END) AS worked_days,
                     COUNT(DISTINCT a.date) AS attended_days,
                     ROUND(COALESCE(SUM(CASE 
                         WHEN TIMESTAMPDIFF(MINUTE, a.check_in, IFNULL(a.check_out, NOW()))/60.0 > 8 
@@ -527,7 +528,7 @@ def get_employee_yearly_hours(employee_id: str) -> list[dict]:
                 """
                 SELECT YEAR(date) AS year,
                        ROUND(SUM(TIMESTAMPDIFF(MINUTE, check_in, IFNULL(check_out, NOW()))/60.0), 2) AS hours,
-                       COUNT(CASE WHEN status IN ('Present', 'Late') THEN 1 END) AS worked_days,
+                       COUNT(DISTINCT CASE WHEN status IN ('Present', 'Late') THEN date END) AS worked_days,
                        COUNT(DISTINCT date) AS attended_days,
                        ROUND(SUM(CASE 
                         WHEN TIMESTAMPDIFF(MINUTE, check_in, IFNULL(check_out, NOW()))/60.0 > 8 
