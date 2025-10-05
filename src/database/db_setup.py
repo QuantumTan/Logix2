@@ -30,8 +30,10 @@ def create_database_and_tables():
                 image_path VARCHAR(255),
                 leave_credits INT DEFAULT 15,
                 is_active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 INDEX idx_employee_id (employee_id),
-                INDEX idx_is_active (is_active)
+                INDEX idx_is_active (is_active),
+                INDEX idx_created_at (created_at)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """)
 
@@ -55,6 +57,19 @@ def create_database_and_tables():
         if cursor.fetchone()[0] == 0:
             cursor.execute("ALTER TABLE employees ADD COLUMN is_active BOOLEAN DEFAULT TRUE")
             cursor.execute("CREATE INDEX idx_is_active ON employees(is_active)")
+
+        # Add created_at column to employees if it doesn't exist
+        cursor.execute("""
+            SELECT COUNT(*) FROM information_schema.COLUMNS 
+            WHERE TABLE_SCHEMA = 'logix' 
+            AND TABLE_NAME = 'employees' 
+            AND COLUMN_NAME = 'created_at'
+        """)
+        if cursor.fetchone()[0] == 0:
+            cursor.execute("ALTER TABLE employees ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+            cursor.execute("CREATE INDEX idx_created_at ON employees(created_at)")
+            # Update existing employees with current timestamp if they don't have created_at
+            cursor.execute("UPDATE employees SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL")
 
         # Create attendance_records table
         cursor.execute("""

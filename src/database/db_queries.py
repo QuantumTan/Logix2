@@ -111,46 +111,106 @@ def get_employee_details(employee_id, period='month'):
     conn = get_db_connection()
     if conn:
         with conn.cursor() as cursor:
-            # Check if employee is active
-            cursor.execute("SELECT leave_credits FROM employees WHERE employee_id = %s AND is_active = TRUE",
-                           (employee_id,))
+            # Check if employee is active and get creation date
+            cursor.execute("""
+                SELECT leave_credits, created_at 
+                FROM employees 
+                WHERE employee_id = %s AND is_active = TRUE
+            """, (employee_id,))
             res = cursor.fetchone()
             if not res:
                 return {}
             leave_credits = res['leave_credits'] if res else 15
 
+            # Use created_at for more accurate absence calculation
+            employee_start_date = res.get('created_at')
+            if not employee_start_date:
+                # Fallback to first attendance record if created_at is null
+                cursor.execute("""
+                    SELECT MIN(date) as first_attendance 
+                    FROM attendance_records 
+                    WHERE employee_id = %s
+                """, (employee_id,))
+                first_record = cursor.fetchone()
+                employee_start_date = first_record['first_attendance'] if first_record and first_record['first_attendance'] else datetime.now().date()
+
             # Base query for period
             if period == 'month':
-                where_period = "AND date >= DATE_SUB(CURDATE(), INTERVAL 1 MONTH)"
+                # Calculate from max(employee_start_date, 1_month_ago) to today
+                cursor.execute("""
+                    SELECT GREATEST(
+                        DATE_SUB(CURDATE(), INTERVAL 1 MONTH), 
+                        DATE(%s)
+                    ) as effective_start_date
+                """, (employee_start_date,))
+                effective_start = cursor.fetchone()['effective_start_date']
+                where_period = "AND date >= %s"
+                date_params = (employee_id, effective_start)
             else:
                 where_period = ""
+                date_params = (employee_id,)
 
-            # Absences
+            # Calculate working days only from effective start date
+            if period == 'month':
+                cursor.execute("""
+                    SELECT COUNT(*) as working_days
+                    FROM (
+                        SELECT DATE_ADD(%s, INTERVAL seq.seq DAY) as work_date
+                        FROM (
+                            SELECT 0 as seq UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9 UNION
+                            SELECT 10 UNION SELECT 11 UNION SELECT 12 UNION SELECT 13 UNION SELECT 14 UNION SELECT 15 UNION SELECT 16 UNION SELECT 17 UNION SELECT 18 UNION SELECT 19 UNION
+                            SELECT 20 UNION SELECT 21 UNION SELECT 22 UNION SELECT 23 UNION SELECT 24 UNION SELECT 25 UNION SELECT 26 UNION SELECT 27 UNION SELECT 28 UNION SELECT 29 UNION SELECT 30
+                        ) seq
+                        WHERE DATE_ADD(%s, INTERVAL seq.seq DAY) <= CURDATE()
+                        AND WEEKDAY(DATE_ADD(%s, INTERVAL seq.seq DAY)) < 5
+                    ) working_dates
+                """, (effective_start, effective_start, effective_start))
+                working_days = cursor.fetchone()['working_days'] or 0
+            else:
+                working_days = 30
+
+            # Get days with attendance records
             cursor.execute(f"""
-                SELECT COUNT(*) as absences FROM attendance_records
-                WHERE employee_id = %s AND status = 'Absent' {where_period}
-            """, (employee_id,))
-            absences = cursor.fetchone()['absences']
+                SELECT COUNT(DISTINCT date) as attended_days
+                FROM attendance_records 
+                WHERE employee_id = %s {where_period}
+            """, date_params)
+            attended_days = cursor.fetchone()['attended_days'] or 0
+
+            # Calculate absences as working days minus attended days
+            absences = max(0, working_days - attended_days) if period == 'month' else 0
+
+            # For non-month periods, use the old logic
+            if period != 'month':
+                cursor.execute(f"""
+                    SELECT COUNT(*) as absences FROM attendance_records
+                    WHERE employee_id = %s AND status = 'Absent' {where_period}
+                """, date_params)
+                absences = cursor.fetchone()['absences']
 
             # Working hours (sum hours)
             cursor.execute(f"""
                 SELECT SUM(TIMESTAMPDIFF(MINUTE, check_in, IFNULL(check_out, NOW())) / 60.0) as hours
                 FROM attendance_records WHERE employee_id = %s {where_period}
-            """, (employee_id,))
+            """, date_params)
             hours = cursor.fetchone()['hours'] or 0
 
             # Total days, present days
             cursor.execute(f"""
                 SELECT COUNT(*) as total_days, SUM(CASE WHEN status IN ('Present', 'Late') THEN 1 ELSE 0 END) as present_days
                 FROM attendance_records WHERE employee_id = %s {where_period}
-            """, (employee_id,))
+            """, date_params)
             res = cursor.fetchone()
             total_days = res['total_days'] or 0
             present_days = res['present_days'] or 0
-            # formulas attendance and average
-            attendance_rate = (present_days / total_days * 100) if total_days > 0 else 0
-            avg_hours = hours / present_days if present_days > 0 else 0
 
+            # For month period, use working days as the base for attendance rate calculation
+            if period == 'month':
+                attendance_rate = (present_days / working_days * 100) if working_days > 0 else 100
+            else:
+                attendance_rate = (present_days / total_days * 100) if total_days > 0 else 100
+
+            avg_hours = hours / present_days if present_days > 0 else 0
 
             # Status
             if attendance_rate > 95:
@@ -173,48 +233,75 @@ def get_employee_details(employee_id, period='month'):
 
 
 def get_employee_details_by_date_range(employee_id, start_date, end_date):
-    """Get computed details for an ACTIVE employee within a specific date range."""
+    """Get computed details for an ACTIVE employee within a specific date range.
+    Absences are computed as working weekdays without a Present/Late record
+    between effective_start (max of hire date and start_date) and effective_end
+    (min of end_date and tomorrow), excluding weekends and future days.
+    """
     conn = get_db_connection()
     if conn:
         with conn.cursor() as cursor:
-            # Check if employee is active
-            cursor.execute("SELECT leave_credits FROM employees WHERE employee_id = %s AND is_active = TRUE",
-                           (employee_id,))
-            res = cursor.fetchone()
-            if not res:
+            # Load employee and ensure active
+            cursor.execute("SELECT leave_credits, created_at FROM employees WHERE employee_id = %s AND is_active = TRUE", (employee_id,))
+            emp = cursor.fetchone()
+            if not emp:
                 return {}
-            leave_credits = res['leave_credits'] if res else 15
+            leave_credits = emp.get('leave_credits', 15)
+            created_at = emp.get('created_at')
 
-            # Date range filter
-            where_period = "AND date >= %s AND date < %s"
+            from datetime import date as _date, timedelta as _td
+            today = _date.today()
+            # Cap end to tomorrow (exclusive) to avoid future days
+            cap_end_exclusive = min(end_date, today + _td(days=1))
+            hire_date = created_at.date() if created_at else None
+            effective_start = max(start_date, hire_date) if hire_date else start_date
 
-            # Absences
-            cursor.execute(f"""
-                SELECT COUNT(*) as absences FROM attendance_records
-                WHERE employee_id = %s AND status = 'Absent' {where_period}
-            """, (employee_id, start_date, end_date))
-            absences = cursor.fetchone()['absences']
+            if effective_start >= cap_end_exclusive:
+                return {
+                    'absences': 0,
+                    'hours': 0,
+                    'leave_credits': leave_credits,
+                    'attendance_rate': 0,
+                    'avg_hours': 0.0,
+                    'status': 'Needs Improvement'
+                }
 
-            # Working hours (sum hours)
-            cursor.execute(f"""
-                SELECT SUM(TIMESTAMPDIFF(MINUTE, check_in, IFNULL(check_out, NOW())) / 60.0) as hours
-                FROM attendance_records WHERE employee_id = %s {where_period}
-            """, (employee_id, start_date, end_date))
-            hours = cursor.fetchone()['hours'] or 0
+            # Present days within range
+            cursor.execute(
+                """
+                SELECT COUNT(DISTINCT date) AS present_days
+                FROM attendance_records
+                WHERE employee_id = %s AND date >= %s AND date < %s
+                  AND status IN ('Present','Late')
+                  AND WEEKDAY(date) < 5
+                """,
+                (employee_id, effective_start, cap_end_exclusive)
+            )
+            present_days = (cursor.fetchone() or {}).get('present_days', 0) or 0
 
-            # Total days, present days
-            cursor.execute(f"""
-                SELECT COUNT(*) as total_days, SUM(CASE WHEN status IN ('Present', 'Late') THEN 1 ELSE 0 END) as present_days
-                FROM attendance_records WHERE employee_id = %s {where_period}
-            """, (employee_id, start_date, end_date))
-            res = cursor.fetchone()
-            total_days = res['total_days'] or 0
-            present_days = res['present_days'] or 0
-            # formulas attendance and average
-            attendance_rate = (present_days / total_days * 100) if total_days > 0 else 0
-            avg_hours = hours / present_days if present_days > 0 else 0
+            # Hours within range
+            cursor.execute(
+                """
+                SELECT SUM(TIMESTAMPDIFF(MINUTE, check_in, IFNULL(check_out, NOW())) / 60.0) AS hours
+                FROM attendance_records
+                WHERE employee_id = %s AND date >= %s AND date < %s
+                """,
+                (employee_id, effective_start, cap_end_exclusive)
+            )
+            hours = (cursor.fetchone() or {}).get('hours', 0) or 0
 
-            # Status
+            # Working weekdays in range
+            d = effective_start
+            working_days = 0
+            while d < cap_end_exclusive:
+                if d.weekday() < 5:
+                    working_days += 1
+                d += _td(days=1)
+
+            absences = max(0, working_days - present_days)
+            attendance_rate = (present_days / working_days * 100) if working_days > 0 else 0
+            avg_hours = (hours / present_days) if present_days > 0 else 0
+
             if attendance_rate > 95:
                 status = 'Excellent'
             elif attendance_rate > 85:
@@ -352,14 +439,14 @@ def get_employee_monthly_hours(employee_id: str, year: int):
         return []
     try:
         with conn.cursor() as cursor:
+            # Get data for each month
             cursor.execute(
                 """
                 SELECT 
                     MONTH(date) AS month,
                     ROUND(SUM(TIMESTAMPDIFF(MINUTE, check_in, IFNULL(check_out, NOW()))/60.0), 2) AS hours,
-                    COUNT(CASE WHEN status = 'Absent' THEN 1 END) AS absences,
                     COUNT(CASE WHEN status IN ('Present', 'Late') THEN 1 END) AS worked_days,
-                    COUNT(DISTINCT date) AS expected_days,
+                    COUNT(DISTINCT date) AS attended_days,
                     ROUND(SUM(CASE 
                         WHEN TIMESTAMPDIFF(MINUTE, check_in, IFNULL(check_out, NOW()))/60.0 > 8 
                         THEN TIMESTAMPDIFF(MINUTE, check_in, IFNULL(check_out, NOW()))/60.0 - 8 
@@ -373,82 +460,56 @@ def get_employee_monthly_hours(employee_id: str, year: int):
                 (employee_id, year)
             )
             rows = cursor.fetchall() or []
-            # Normalize None values to 0
+
+            # Calculate working days and absences for each month (Mon-Fri), capped to today
             for r in rows:
+                month = int(r['month'])
+
+                # Count working days for the month using a generated date series
+                cursor.execute(
+                    """
+                    SELECT COUNT(*) AS working_days
+                    FROM (
+                        SELECT 0 AS seq UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9 UNION
+                        SELECT 10 UNION SELECT 11 UNION SELECT 12 UNION SELECT 13 UNION SELECT 14 UNION SELECT 15 UNION SELECT 16 UNION SELECT 17 UNION SELECT 18 UNION SELECT 19 UNION
+                        SELECT 20 UNION SELECT 21 UNION SELECT 22 UNION SELECT 23 UNION SELECT 24 UNION SELECT 25 UNION SELECT 26 UNION SELECT 27 UNION SELECT 28 UNION SELECT 29 UNION SELECT 30
+                    ) s
+                    WHERE 
+                        WEEKDAY(
+                            DATE_ADD(
+                                DATE_ADD(MAKEDATE(%s, 1), INTERVAL %s-1 MONTH), 
+                                INTERVAL s.seq DAY
+                            )
+                        ) < 5
+                        AND DATE_ADD(
+                                DATE_ADD(MAKEDATE(%s, 1), INTERVAL %s-1 MONTH),
+                                INTERVAL s.seq DAY
+                            ) <= LEAST(
+                                LAST_DAY(DATE_ADD(MAKEDATE(%s, 1), INTERVAL %s-1 MONTH)),
+                                CURDATE()
+                            )
+                        AND DATE_ADD(
+                                DATE_ADD(MAKEDATE(%s, 1), INTERVAL %s-1 MONTH),
+                                INTERVAL s.seq DAY
+                            ) >= DATE_ADD(MAKEDATE(%s, 1), INTERVAL %s-1 MONTH)
+                    """,
+                    (year, month, year, month, year, month, year, month, year, month)
+                )
+                wd_res = cursor.fetchone()
+                working_days = (wd_res or {}).get('working_days', 0) or 0
+
+                # Absences as expected (Mon-Fri working days) minus attended days
+                attended_days = r['attended_days'] or 0
+                absences = max(0, int(working_days) - int(attended_days))
+
+                # Update row
                 r['hours'] = r['hours'] or 0
-                r['absences'] = r['absences'] or 0
+                r['absences'] = absences
                 r['worked_days'] = r['worked_days'] or 0
-                r['expected_days'] = r['expected_days'] or 0
+                r['expected_days'] = working_days
                 r['overtime'] = r['overtime'] or 0
+
             return rows
-    finally:
-        conn.close()
-
-
-def get_employee_yearly_hours(employee_id: str):
-    """Return a list of enhanced yearly data across all years for the employee.
-    Includes hours, absences, worked_days, expected_days, and overtime.
-    """
-    conn = get_db_connection()
-    if not conn:
-        return []
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute(
-                """
-                SELECT 
-                    YEAR(date) AS year,
-                    ROUND(SUM(TIMESTAMPDIFF(MINUTE, check_in, IFNULL(check_out, NOW()))/60.0), 2) AS hours,
-                    COUNT(CASE WHEN status = 'Absent' THEN 1 END) AS absences,
-                    COUNT(CASE WHEN status IN ('Present', 'Late') THEN 1 END) AS worked_days,
-                    COUNT(DISTINCT date) AS expected_days,
-                    ROUND(SUM(CASE 
-                        WHEN TIMESTAMPDIFF(MINUTE, check_in, IFNULL(check_out, NOW()))/60.0 > 8 
-                        THEN TIMESTAMPDIFF(MINUTE, check_in, IFNULL(check_out, NOW()))/60.0 - 8 
-                        ELSE 0 
-                    END), 2) AS overtime
-                FROM attendance_records
-                WHERE employee_id = %s
-                GROUP BY YEAR(date)
-                ORDER BY year
-                """,
-                (employee_id,)
-            )
-            rows = cursor.fetchall() or []
-            for r in rows:
-                r['hours'] = r['hours'] or 0
-                r['absences'] = r['absences'] or 0
-                r['worked_days'] = r['worked_days'] or 0
-                r['expected_days'] = r['expected_days'] or 0
-                r['overtime'] = r['overtime'] or 0
-            return rows
-    finally:
-        conn.close()
-
-
-def search_employees(query: str, limit: int = 50):
-    """Search ACTIVE employees by ID or full name, limited for performance."""
-    q = (query or '').strip()
-    if not q:
-        return []
-    conn = get_db_connection()
-    if not conn:
-        return []
-    try:
-        with conn.cursor() as cursor:
-            like = f"%{q}%"
-            cursor.execute(
-                """
-                SELECT employee_id, full_name
-                FROM employees
-                WHERE is_active = TRUE
-                  AND (CAST(employee_id AS CHAR) LIKE %s OR full_name LIKE %s)
-                ORDER BY full_name ASC
-                LIMIT %s
-                """,
-                (like, like, int(max(1, min(limit, 500))))
-            )
-            return cursor.fetchall() or []
     finally:
         conn.close()
 
@@ -467,10 +528,10 @@ def get_all_employees_hours_for_month(year: int, month: int):
                 SELECT 
                     e.employee_id,
                     e.full_name,
+                    e.created_at,
                     ROUND(COALESCE(SUM(TIMESTAMPDIFF(MINUTE, a.check_in, IFNULL(a.check_out, NOW()))/60.0), 0), 2) AS hours,
-                    COUNT(CASE WHEN a.status = 'Absent' THEN 1 END) AS absences,
                     COUNT(CASE WHEN a.status IN ('Present', 'Late') THEN 1 END) AS worked_days,
-                    COUNT(DISTINCT a.date) AS expected_days,
+                    COUNT(DISTINCT a.date) AS attended_days,
                     ROUND(COALESCE(SUM(CASE 
                         WHEN TIMESTAMPDIFF(MINUTE, a.check_in, IFNULL(a.check_out, NOW()))/60.0 > 8 
                         THEN TIMESTAMPDIFF(MINUTE, a.check_in, IFNULL(a.check_out, NOW()))/60.0 - 8 
@@ -480,17 +541,59 @@ def get_all_employees_hours_for_month(year: int, month: int):
                 LEFT JOIN attendance_records a ON e.employee_id = a.employee_id 
                     AND YEAR(a.date) = %s AND MONTH(a.date) = %s
                 WHERE e.is_active = TRUE
-                GROUP BY e.employee_id, e.full_name
+                GROUP BY e.employee_id, e.full_name, e.created_at
                 ORDER BY e.full_name
                 """,
                 (year, month)
             )
             rows = cursor.fetchall() or []
+
             for r in rows:
+                attended_days = int(r.get('attended_days', 0) or 0)
+                created_at = r.get('created_at')
+
+                # Compute working days for the month (Mon-Fri), starting from hire date if within month, and capped to today
+                cursor.execute(
+                    """
+                    SELECT COUNT(*) AS working_days
+                    FROM (
+                        SELECT 0 AS seq UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9 UNION
+                        SELECT 10 UNION SELECT 11 UNION SELECT 12 UNION SELECT 13 UNION SELECT 14 UNION SELECT 15 UNION SELECT 16 UNION SELECT 17 UNION SELECT 18 UNION SELECT 19 UNION
+                        SELECT 20 UNION SELECT 21 UNION SELECT 22 UNION SELECT 23 UNION SELECT 24 UNION SELECT 25 UNION SELECT 26 UNION SELECT 27 UNION SELECT 28 UNION SELECT 29 UNION SELECT 30
+                    ) s
+                    WHERE 
+                        WEEKDAY(
+                            DATE_ADD(
+                                DATE_ADD(MAKEDATE(%s, 1), INTERVAL %s-1 MONTH), 
+                                INTERVAL s.seq DAY
+                            )
+                        ) < 5
+                        AND DATE_ADD(
+                                DATE_ADD(MAKEDATE(%s, 1), INTERVAL %s-1 MONTH),
+                                INTERVAL s.seq DAY
+                            ) <= LEAST(
+                                LAST_DAY(DATE_ADD(MAKEDATE(%s, 1), INTERVAL %s-1 MONTH)),
+                                CURDATE()
+                            )
+                        AND DATE_ADD(
+                                DATE_ADD(MAKEDATE(%s, 1), INTERVAL %s-1 MONTH),
+                                INTERVAL s.seq DAY
+                            ) >= GREATEST(
+                                DATE(%s),
+                                DATE_ADD(MAKEDATE(%s, 1), INTERVAL %s-1 MONTH)
+                            )
+                    """,
+                    (year, month, year, month, year, month, year, month, created_at, year, month)
+                )
+                wd_res = cursor.fetchone()
+                working_days = (wd_res or {}).get('working_days', 0) or 0
+
+                absences = max(0, int(working_days) - attended_days)
+
                 r['hours'] = r['hours'] or 0
-                r['absences'] = r['absences'] or 0
+                r['absences'] = absences
                 r['worked_days'] = r['worked_days'] or 0
-                r['expected_days'] = r['expected_days'] or 0
+                r['expected_days'] = working_days
                 r['overtime'] = r['overtime'] or 0
             return rows
     finally:
@@ -506,15 +609,16 @@ def get_all_employees_hours_for_year(year: int):
         return []
     try:
         with conn.cursor() as cursor:
+            # Aggregate per employee for the given year
             cursor.execute(
                 """
                 SELECT 
                     e.employee_id,
                     e.full_name,
+                    e.created_at,
                     ROUND(COALESCE(SUM(TIMESTAMPDIFF(MINUTE, a.check_in, IFNULL(a.check_out, NOW()))/60.0), 0), 2) AS hours,
-                    COUNT(CASE WHEN a.status = 'Absent' THEN 1 END) AS absences,
                     COUNT(CASE WHEN a.status IN ('Present', 'Late') THEN 1 END) AS worked_days,
-                    COUNT(DISTINCT a.date) AS expected_days,
+                    COUNT(DISTINCT a.date) AS attended_days,
                     ROUND(COALESCE(SUM(CASE 
                         WHEN TIMESTAMPDIFF(MINUTE, a.check_in, IFNULL(a.check_out, NOW()))/60.0 > 8 
                         THEN TIMESTAMPDIFF(MINUTE, a.check_in, IFNULL(a.check_out, NOW()))/60.0 - 8 
@@ -524,18 +628,127 @@ def get_all_employees_hours_for_year(year: int):
                 LEFT JOIN attendance_records a ON e.employee_id = a.employee_id 
                     AND YEAR(a.date) = %s
                 WHERE e.is_active = TRUE
-                GROUP BY e.employee_id, e.full_name
+                GROUP BY e.employee_id, e.full_name, e.created_at
                 ORDER BY e.full_name
                 """,
                 (year,)
             )
             rows = cursor.fetchall() or []
+
+            # Post-process expected working days and absences per employee in Python
+            import datetime as _dt
+            today = _dt.date.today()
+            year_start = _dt.date(year, 1, 1)
+            year_end = _dt.date(year, 12, 31)
+            cap_end = min(year_end, today)
+
+            def _count_weekdays(start: _dt.date, end: _dt.date) -> int:
+                if start > end:
+                    return 0
+                d = start
+                one = _dt.timedelta(days=1)
+                cnt = 0
+                while d <= end:
+                    if d.weekday() < 5:
+                        cnt += 1
+                    d += one
+                return cnt
+
             for r in rows:
-                r['hours'] = r['hours'] or 0
-                r['absences'] = r['absences'] or 0
-                r['worked_days'] = r['worked_days'] or 0
-                r['expected_days'] = r['expected_days'] or 0
-                r['overtime'] = r['overtime'] or 0
+                created_at = r.get('created_at')
+                hire_date = created_at.date() if created_at else year_start
+                effective_start = max(year_start, hire_date)
+                expected_days = _count_weekdays(effective_start, cap_end)
+                attended_days = int(r.get('attended_days', 0) or 0)
+                absences = max(0, int(expected_days) - attended_days)
+
+                r['hours'] = r.get('hours', 0) or 0
+                r['worked_days'] = r.get('worked_days', 0) or 0
+                r['expected_days'] = expected_days
+                r['absences'] = absences
+                r['overtime'] = r.get('overtime', 0) or 0
+                r['year'] = year
+
+            return rows
+    finally:
+        conn.close()
+
+
+def get_employee_yearly_hours(employee_id: str):
+    """Return a list of enhanced yearly data for the given employee across years.
+    Each row includes year, hours, absences, worked_days, expected_days, and overtime.
+    """
+    conn = get_db_connection()
+    if not conn:
+        return []
+    try:
+        with conn.cursor() as cursor:
+            # Fetch employee hire date
+            cursor.execute(
+                """
+                SELECT created_at FROM employees 
+                WHERE employee_id = %s AND is_active = TRUE
+                """,
+                (employee_id,)
+            )
+            emp = cursor.fetchone() or {}
+            created_at = emp.get('created_at')
+
+            # Aggregate by year for the employee
+            cursor.execute(
+                """
+                SELECT 
+                    YEAR(date) AS year,
+                    ROUND(SUM(TIMESTAMPDIFF(MINUTE, check_in, IFNULL(check_out, NOW()))/60.0), 2) AS hours,
+                    COUNT(CASE WHEN status IN ('Present', 'Late') THEN 1 END) AS worked_days,
+                    COUNT(DISTINCT date) AS attended_days,
+                    ROUND(SUM(CASE 
+                        WHEN TIMESTAMPDIFF(MINUTE, check_in, IFNULL(check_out, NOW()))/60.0 > 8 
+                        THEN TIMESTAMPDIFF(MINUTE, check_in, IFNULL(check_out, NOW()))/60.0 - 8 
+                        ELSE 0 
+                    END), 2) AS overtime
+                FROM attendance_records
+                WHERE employee_id = %s
+                GROUP BY YEAR(date)
+                ORDER BY year
+                """,
+                (employee_id,)
+            )
+            rows = cursor.fetchall() or []
+
+            # Compute expected days and absences per year
+            import datetime as _dt
+            today = _dt.date.today()
+
+            def _count_weekdays(start: _dt.date, end: _dt.date) -> int:
+                if start > end:
+                    return 0
+                d = start
+                one = _dt.timedelta(days=1)
+                cnt = 0
+                while d <= end:
+                    if d.weekday() < 5:
+                        cnt += 1
+                    d += one
+                return cnt
+
+            for r in rows:
+                year = int(r.get('year'))
+                year_start = _dt.date(year, 1, 1)
+                year_end = _dt.date(year, 12, 31)
+                cap_end = min(year_end, today)
+                hire_date = created_at.date() if created_at else year_start
+                effective_start = max(year_start, hire_date)
+                expected_days = _count_weekdays(effective_start, cap_end)
+                attended_days = int(r.get('attended_days', 0) or 0)
+                absences = max(0, int(expected_days) - attended_days)
+
+                r['hours'] = r.get('hours', 0) or 0
+                r['worked_days'] = r.get('worked_days', 0) or 0
+                r['expected_days'] = expected_days
+                r['absences'] = absences
+                r['overtime'] = r.get('overtime', 0) or 0
+
             return rows
     finally:
         conn.close()
@@ -631,50 +844,84 @@ def delete_staff(username):
 
 
 def get_employee_monthly_attendance_details(employee_id, start_date, end_date):
-    """Get detailed monthly attendance records for an employee within a specific date range."""
+    """Get detailed monthly attendance records for an employee within a specific date range.
+    Ensures a row per working weekday in the range. Missing records are emitted as Absent.
+    Date range is [start_date, end_date), capped by employee hire date and today.
+    """
     conn = get_db_connection()
     if conn:
         with conn.cursor() as cursor:
-            # Check if employee is active
-            cursor.execute("SELECT full_name FROM employees WHERE employee_id = %s AND is_active = TRUE",
-                           (employee_id,))
+            # Verify employee active and get hire date
+            cursor.execute(
+                "SELECT full_name, created_at FROM employees WHERE employee_id = %s AND is_active = TRUE",
+                (employee_id,)
+            )
             res = cursor.fetchone()
             if not res:
+                conn.close()
+                return []
+            created_at = res.get('created_at')
+
+            from datetime import date as _date, timedelta as _td, datetime as _dt
+            today = _date.today()
+            cap_end_exclusive = min(end_date, today + _td(days=1))
+            hire_date = created_at.date() if created_at else None
+            effective_start = max(start_date, hire_date) if hire_date else start_date
+
+            if effective_start >= cap_end_exclusive:
+                conn.close()
                 return []
 
-            # Get detailed attendance records for the date range
-            cursor.execute("""
-                SELECT 
-                    date,
-                    check_in,
-                    check_out,
-                    status,
-                    CASE 
-                        WHEN check_in IS NOT NULL AND check_out IS NOT NULL THEN
-                            ROUND(TIMESTAMPDIFF(MINUTE, check_in, check_out) / 60.0, 2)
-                        WHEN check_in IS NOT NULL AND check_out IS NULL THEN
-                            ROUND(TIMESTAMPDIFF(MINUTE, check_in, NOW()) / 60.0, 2)
-                        ELSE 0
-                    END as daily_hours
-                FROM attendance_records 
+            # Fetch all records in the effective range
+            cursor.execute(
+                """
+                SELECT date, check_in, check_out, status
+                FROM attendance_records
                 WHERE employee_id = %s AND date >= %s AND date < %s
-                ORDER BY date ASC
-            """, (employee_id, start_date, end_date))
+                """,
+                (employee_id, effective_start, cap_end_exclusive)
+            )
+            rows = cursor.fetchall() or []
+            by_date = {r['date']: r for r in rows}
 
-            records = cursor.fetchall() or []
-
-            # Format the records for display
+            # Build a complete list of working days
             formatted_records = []
-            for record in records:
-                formatted_records.append({
-                    'date': record['date'].strftime('%Y-%m-%d') if record['date'] else '',
-                    'check_in': record['check_in'].strftime('%H:%M') if record['check_in'] else '--',
-                    'check_out': record['check_out'].strftime('%H:%M') if record['check_out'] else '--',
-                    'status': record['status'] or 'Absent',
-                    'daily_hours': record['daily_hours'] or 0
-                })
+            cur = effective_start
+            while cur < cap_end_exclusive:
+                if cur.weekday() < 5:  # Mon-Fri
+                    rec = by_date.get(cur)
+                    if rec:
+                        ci = rec.get('check_in')
+                        co = rec.get('check_out')
+                        status = rec.get('status') or 'Absent'
+                        # Compute daily hours similar to prior logic
+                        if ci and co:
+                            diff_hours = round((co - ci).total_seconds() / 3600.0, 2)
+                        elif ci and not co:
+                            diff_hours = round((_dt.now() - ci).total_seconds() / 3600.0, 2)
+                        else:
+                            diff_hours = 0
+                        formatted_records.append({
+                            'date': cur.strftime('%Y-%m-%d'),
+                            'check_in': ci.strftime('%H:%M') if ci else '--',
+                            'check_out': co.strftime('%H:%M') if co else '--',
+                            'status': status,
+                            'daily_hours': diff_hours
+                        })
+                    else:
+                        # No record for a working day: Absent
+                        formatted_records.append({
+                            'date': cur.strftime('%Y-%m-%d'),
+                            'check_in': '--',
+                            'check_out': '--',
+                            'status': 'Absent',
+                            'daily_hours': 0
+                        })
+                cur += _td(days=1)
 
         conn.close()
+        # Ensure chronological order
+        formatted_records.sort(key=lambda x: x['date'])
         return formatted_records
     return []
 
@@ -687,8 +934,8 @@ def add_employee(employee_id, full_name, position, department, image_path=None, 
             with conn.cursor() as cursor:
                 cursor.execute(
                     """
-                    INSERT INTO employees (employee_id, full_name, position, department, image_path, leave_credits, is_active)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    INSERT INTO employees (employee_id, full_name, position, department, image_path, leave_credits, is_active, created_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
                     """,
                     (employee_id, full_name, position, department, image_path, leave_credits, is_active)
                 )

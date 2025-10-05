@@ -910,12 +910,47 @@ class DashboardBase(QWidget):
         if not emp_id:
             # Default: show all employees aggregated for the selected period
             try:
-                from ..database.db_queries import get_all_employees_hours_for_month, get_all_employees_hours_for_year
+                from ..database.db_queries import get_all_employees_hours_for_month, get_all_employees_hours_for_year, get_all_employees
                 if view == "Monthly":
                     today = QDate.currentDate()
                     year = today.year()
                     month = today.month()
                     rows = get_all_employees_hours_for_month(year, month) or []
+
+                    # Fallback: if no rows returned, synthesize from employees
+                    if not rows:
+                        emps = get_all_employees() or []
+                        # Build synthetic rows with zero hours/attendance but expected working days
+                        import datetime as _dt
+                        import calendar as _cal
+                        first_of_month = _dt.date(year, month, 1)
+                        last_of_month = _dt.date(year, month, _cal.monthrange(year, month)[1])
+                        cap_end = min(last_of_month, _dt.date.today())
+                        def _count_weekdays(start: _dt.date, end: _dt.date) -> int:
+                            d = start
+                            cnt = 0
+                            one = _dt.timedelta(days=1)
+                            while d <= end:
+                                if d.weekday() < 5:
+                                    cnt += 1
+                                d += one
+                            return max(cnt, 0)
+                        synthesized = []
+                        for e in emps:
+                            created_at = e.get('created_at')
+                            hire_date = created_at.date() if created_at else first_of_month
+                            eff_start = max(first_of_month, hire_date)
+                            expected_days = _count_weekdays(eff_start, cap_end) if eff_start <= cap_end else 0
+                            synthesized.append({
+                                'full_name': e.get('full_name', ''),
+                                'hours': 0.0,
+                                'absences': expected_days,
+                                'worked_days': 0,
+                                'expected_days': expected_days,
+                                'overtime': 0.0,
+                            })
+                        rows = synthesized
+
                     self.indiv_table.setColumnCount(6)
                     self.indiv_table.setHorizontalHeaderLabels([
                         "Employee Name", "Total Hours", "Average Daily Hours",
@@ -960,6 +995,40 @@ class DashboardBase(QWidget):
                     today = QDate.currentDate()
                     year = today.year()
                     rows = get_all_employees_hours_for_year(year) or []
+
+                    # Fallback: synthesize when no rows
+                    if not rows:
+                        emps = get_all_employees() or []
+                        import datetime as _dt
+                        jan1 = _dt.date(year, 1, 1)
+                        dec31 = _dt.date(year, 12, 31)
+                        cap_end = min(dec31, _dt.date.today())
+                        def _count_weekdays(start: _dt.date, end: _dt.date) -> int:
+                            d = start
+                            cnt = 0
+                            one = _dt.timedelta(days=1)
+                            while d <= end:
+                                if d.weekday() < 5:
+                                    cnt += 1
+                                d += one
+                            return max(cnt, 0)
+                        synthesized = []
+                        for e in emps:
+                            created_at = e.get('created_at')
+                            hire_date = created_at.date() if created_at else jan1
+                            eff_start = max(jan1, hire_date)
+                            expected_days = _count_weekdays(eff_start, cap_end) if eff_start <= cap_end else 0
+                            synthesized.append({
+                                'full_name': e.get('full_name', ''),
+                                'hours': 0.0,
+                                'absences': expected_days,
+                                'worked_days': 0,
+                                'expected_days': expected_days,
+                                'overtime': 0.0,
+                                'year': year
+                            })
+                        rows = synthesized
+
                     self.indiv_table.setColumnCount(6)
                     self.indiv_table.setHorizontalHeaderLabels([
                         "Employee Name", "Total Hours", "Average Daily Hours",
@@ -1058,6 +1127,37 @@ class DashboardBase(QWidget):
                 )
             else:
                 rows = get_employee_yearly_hours(emp_id) or []
+                # Fallback: if empty, synthesize a default yearly row for the current year
+                if not rows:
+                    try:
+                        from ..database.db_queries import get_employee_by_id
+                        import datetime as _dt
+                        today = _dt.date.today()
+                        year = today.year
+                        emp = get_employee_by_id(emp_id) or {}
+                        created_at = emp.get('created_at')
+                        hire_date = created_at.date() if created_at else _dt.date(year, 1, 1)
+                        start = max(_dt.date(year, 1, 1), hire_date)
+                        end = min(_dt.date(year, 12, 31), today)
+                        # Count weekdays between start and end inclusive
+                        one = _dt.timedelta(days=1)
+                        wd = 0
+                        d = start
+                        while d <= end:
+                            if d.weekday() < 5:
+                                wd += 1
+                            d += one
+                        rows = [{
+                            'year': year,
+                            'hours': 0.0,
+                            'worked_days': 0,
+                            'attended_days': 0,
+                            'overtime': 0.0,
+                            'expected_days': wd,
+                            'absences': wd
+                        }]
+                    except Exception as _e:
+                        rows = []
                 self.indiv_table.setColumnCount(6)
                 self.indiv_table.setHorizontalHeaderLabels([
                     "Year", "Total Hours", "Average Daily Hours",
@@ -1066,7 +1166,7 @@ class DashboardBase(QWidget):
                 self.indiv_table.setRowCount(len(rows))
 
                 for i, r in enumerate(rows):
-                    year = r['year']
+                    year = r.get('year') or QDate.currentDate().year()
                     hours = float(r.get('hours', 0) or 0)
                     absences = int(r.get('absences', 0) or 0)
                     worked_days = int(r.get('worked_days', 0) or 0)
@@ -1422,14 +1522,21 @@ class DashboardBase(QWidget):
             employees = get_all_employees() or []
             self.employee_data = {}
             for emp in employees:
-                self.employee_data[emp['employee_id']] = {
-                    'id': emp['employee_id'],
+                emp_id = emp['employee_id']
+                # Fetch computed monthly details (absences, hours, etc.)
+                details = {}
+                try:
+                    details = get_employee_details(emp_id, 'month') or {}
+                except Exception as _e:
+                    details = {}
+                self.employee_data[emp_id] = {
+                    'id': emp_id,
                     'name': emp['full_name'],
                     'position': emp.get('position', ''),
                     'department': emp.get('department', ''),
                     'image_path': emp.get('image_path'),
-                    'leave_credits': emp.get('leave_credits', 15),
-                    'absences': 0,
+                    'leave_credits': details.get('leave_credits', emp.get('leave_credits', 15)),
+                    'absences': int(details.get('absences', 0) or 0),
                 }
         except Exception as e:
             print(f"Error loading employee data: {e}")
