@@ -2,7 +2,7 @@
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout,
     QHBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QFrame, QSizePolicy, QStackedWidget,
-    QFileDialog, QMessageBox, QInputDialog, QComboBox, QScrollArea, QListWidget, QListWidgetItem
+    QFileDialog, QMessageBox, QInputDialog, QComboBox, QScrollArea
 )
 from PyQt6.QtCore import Qt, QTimer, QTime, QDate
 from PyQt6.QtGui import QFont, QPixmap, QPainter, QPageLayout, QPageSize, QPdfWriter
@@ -16,7 +16,6 @@ import shutil
 from ..config import (
     ATTENDANCE_REFRESH_MS,
     REPORTS_REFRESH_MS,
-    INDIV_SEARCH_DEBOUNCE_MS,
     TIME_TICK_MS,
     TIME_DISPLAY_FORMAT,
     DATE_DISPLAY_FORMAT,
@@ -435,9 +434,6 @@ class DashboardBase(QWidget):
         self.reports_chart = view.reports_chart
         self._reports_placeholder = view._reports_placeholder
         self.chart_container_layout = view.chart_container_layout
-        self.indiv_search_input = view.indiv_search_input
-        self.indiv_search_timer = view.indiv_search_timer
-        self.indiv_results = view.indiv_results
         self.selected_emp_label = view.selected_emp_label
         self.indiv_view_combo = view.indiv_view_combo
         self.indiv_table = view.indiv_table
@@ -448,10 +444,7 @@ class DashboardBase(QWidget):
         view.export_csv_btn.clicked.connect(self.export_report_csv)
         view.export_pdf_btn.clicked.connect(self.export_report_pdf)
 
-        self.indiv_search_timer.setInterval(INDIV_SEARCH_DEBOUNCE_MS)
-        self.indiv_search_input.textChanged.connect(self._on_indiv_search_text_changed)
-        self.indiv_search_timer.timeout.connect(self._perform_indiv_search)
-        self.indiv_results.itemClicked.connect(self._on_indiv_result_clicked)
+        # Wire view combo change to table update (search removed)
         self.indiv_view_combo.currentTextChanged.connect(self._on_indiv_selection_changed)
 
         # Wire individual exports
@@ -462,7 +455,7 @@ class DashboardBase(QWidget):
         self.reports_scroll = view
         self.content_stack.addWidget(self.reports_scroll)
 
-        # Internal state for selected employee
+        # Internal state for selected employee (no search, always None = all employees)
         self._selected_emp_id = None
 
     def switch_tab(self, tab_name):
@@ -516,38 +509,6 @@ class DashboardBase(QWidget):
             print(f"Failed to create reports chart: {e}")
             self.reports_chart = None
 
-    def _on_indiv_search_text_changed(self, _text: str):
-        # Debounce frequent queries
-        if self.indiv_search_timer.isActive():
-            self.indiv_search_timer.stop()
-        self.indiv_search_timer.start()
-
-    def _perform_indiv_search(self):
-        try:
-            from ..database.db_queries import search_employees
-            q = self.indiv_search_input.text().strip()
-            self.indiv_results.clear()
-            if not q:
-                return
-            rows = search_employees(q, limit=50) or []
-            for r in rows:
-                item = QListWidgetItem(f"{r['full_name']} ({r['employee_id']})")
-                item.setData(Qt.ItemDataRole.UserRole, r['employee_id'])
-                item.setData(Qt.ItemDataRole.UserRole + 1, r['full_name'])
-                self.indiv_results.addItem(item)
-        except Exception as e:
-            print(f"Employee search failed: {e}")
-
-    def _on_indiv_result_clicked(self, item: QListWidgetItem):
-        try:
-            emp_id = item.data(Qt.ItemDataRole.UserRole)
-            full_name = item.data(Qt.ItemDataRole.UserRole + 1)
-            self._selected_emp_id = emp_id
-            self.selected_emp_label.setText(f"Selected: {full_name} – {emp_id}")
-            self._update_indiv_table()
-        except Exception as e:
-            print(f"Selecting employee failed: {e}")
-
     def _on_indiv_selection_changed(self, *_):
         # Refresh individual table when Monthly/Yearly view changes
         self._update_indiv_table()
@@ -556,6 +517,7 @@ class DashboardBase(QWidget):
         emp_id = getattr(self, '_selected_emp_id', None)
         view = self.indiv_view_combo.currentText() if self.indiv_view_combo.count() else "Monthly"
 
+        # Since search is removed, emp_id will always be None, showing all employees
         if not emp_id:
             # Default: show all employees aggregated for the selected period
             try:
@@ -717,129 +679,6 @@ class DashboardBase(QWidget):
                 self.indiv_summary_label.setText("No data available")
             return
 
-        # Individual employee view
-        try:
-            from ..database.db_queries import get_employee_monthly_hours, get_employee_yearly_hours
-            total_hours = 0
-            total_absences = 0
-            total_overtime = 0
-
-            if view == "Monthly":
-                import datetime, calendar
-                year = datetime.date.today().year
-                rows = get_employee_monthly_hours(emp_id, year) or []
-
-                months_data = {int(r['month']): r for r in rows}
-
-                self.indiv_table.setColumnCount(6)
-                self.indiv_table.setHorizontalHeaderLabels([
-                    "Month", "Total Hours", "Average Daily Hours",
-                    "Total Absences", "Attendance %", "Overtime Hours"
-                ])
-                self.indiv_table.setRowCount(12)
-
-                for m in range(1, 13):
-                    month_data = months_data.get(m, {})
-                    hours = float(month_data.get('hours', 0) or 0)
-                    absences = int(month_data.get('absences', 0) or 0)
-                    worked_days = int(month_data.get('worked_days', 0) or 0)
-                    expected_days = int(month_data.get('expected_days', 0) or 0)
-                    overtime = float(month_data.get('overtime', 0) or 0)
-
-                    avg_daily_hours = round(hours / worked_days, 2) if worked_days > 0 else 0
-                    attendance_pct = round((worked_days / expected_days) * 100, 1) if expected_days > 0 else 0
-
-                    self.indiv_table.setItem(m-1, 0, QTableWidgetItem(calendar.month_name[m]))
-                    self.indiv_table.setItem(m-1, 1, QTableWidgetItem(str(round(hours, 2))))
-                    self.indiv_table.setItem(m-1, 2, QTableWidgetItem(str(avg_daily_hours)))
-                    self.indiv_table.setItem(m-1, 3, QTableWidgetItem(str(absences)))
-                    self.indiv_table.setItem(m-1, 4, QTableWidgetItem(f"{attendance_pct}%" if expected_days > 0 else "--"))
-                    self.indiv_table.setItem(m-1, 5, QTableWidgetItem(str(round(overtime, 2))))
-
-                    total_hours += hours
-                    total_absences += absences
-                    total_overtime += overtime
-
-                self.indiv_summary_label.setText(
-                    f"Yearly Total ({year}): {round(total_hours, 2)} hours  •  "
-                    f"Total Absences: {total_absences}  •  Total Overtime: {round(total_overtime, 2)}"
-                )
-            else:
-                rows = get_employee_yearly_hours(emp_id) or []
-                if not rows:
-                    try:
-                        from ..database.db_queries import get_employee_by_id
-                        import datetime as _dt
-                        today = _dt.date.today()
-                        year = today.year
-                        emp = get_employee_by_id(emp_id) or {}
-                        created_at = emp.get('created_at')
-                        hire_date = created_at.date() if created_at else _dt.date(year, 1, 1)
-                        start = max(_dt.date(year, 1, 1), hire_date)
-                        end = min(_dt.date(year, 12, 31), today)
-                        one = _dt.timedelta(days=1)
-                        wd = 0
-                        d = start
-                        while d <= end:
-                            if d.weekday() < 5:
-                                wd += 1
-                            d += one
-                        rows = [{
-                            'year': year,
-                            'hours': 0.0,
-                            'worked_days': 0,
-                            'attended_days': 0,
-                            'overtime': 0.0,
-                            'expected_days': wd,
-                            'absences': wd
-                        }]
-                    except Exception as _e:
-                        rows = []
-                self.indiv_table.setColumnCount(6)
-                self.indiv_table.setHorizontalHeaderLabels([
-                    "Year", "Total Hours", "Average Daily Hours",
-                    "Total Absences", "Attendance %", "Overtime Hours"
-                ])
-                self.indiv_table.setRowCount(len(rows))
-
-                for i, r in enumerate(rows):
-                    year = r.get('year') or QDate.currentDate().year()
-                    hours = float(r.get('hours', 0) or 0)
-                    absences = int(r.get('absences', 0) or 0)
-                    worked_days = int(r.get('worked_days', 0) or 0)
-                    expected_days = int(r.get('expected_days', 0) or 0)
-                    overtime = float(r.get('overtime', 0) or 0)
-
-                    avg_daily_hours = round(hours / worked_days, 2) if worked_days > 0 else 0
-                    attendance_pct = round((worked_days / expected_days) * 100, 1) if expected_days > 0 else 0
-
-                    self.indiv_table.setItem(i, 0, QTableWidgetItem(str(year)))
-                    self.indiv_table.setItem(i, 1, QTableWidgetItem(str(round(hours, 2))))
-                    self.indiv_table.setItem(i, 2, QTableWidgetItem(str(avg_daily_hours)))
-                    self.indiv_table.setItem(i, 3, QTableWidgetItem(str(absences)))
-                    self.indiv_table.setItem(i, 4, QTableWidgetItem(f"{attendance_pct}%" if expected_days > 0 else "--"))
-                    self.indiv_table.setItem(i, 5, QTableWidgetItem(str(round(overtime, 2))))
-
-                    total_hours += hours
-                    total_absences += absences
-                    total_overtime += overtime
-
-                self.indiv_summary_label.setText(
-                    f"All Years Total: {round(total_hours, 2)} hours  •  "
-                    f"Total Absences: {total_absences}  •  Total Overtime: {round(total_overtime, 2)}"
-                )
-        except Exception as e:
-            print(f"Failed to update individual table: {e}")
-            self.indiv_table.setColumnCount(6)
-            self.indiv_table.setHorizontalHeaderLabels([
-                "Employee Name", "Total Hours", "Average Daily Hours",
-                "Total Absences", "Attendance %", "Overtime Hours"
-            ])
-            self.indiv_table.setRowCount(1)
-            self.indiv_table.setItem(0, 0, QTableWidgetItem("Data unavailable"))
-            for col in range(1, 6):
-                self.indiv_table.setItem(0, col, QTableWidgetItem("--"))
-            self.indiv_summary_label.setText("Error loading data")
 
     def update_reports_view(self, period_text=None):
         # Map between display text and internal period code
