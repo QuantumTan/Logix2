@@ -38,12 +38,13 @@ def employee_check_in(employee_id: int) -> bool:
             )
             if not cursor.fetchone():
                 return False
+            # Prevent multiple check-ins for the same day
             cursor.execute(
                 "SELECT 1 FROM attendance_records WHERE employee_id = %s AND date = CURDATE()",
                 (employee_id,)
             )
             if cursor.fetchone():
-                return False
+                return False # Already checked in today
             check_in = datetime.now()
             start_time = check_in.replace(hour=8, minute=0, second=0, microsecond=0)
             late_threshold = start_time.replace(minute=15)
@@ -132,7 +133,7 @@ def get_employee_details(employee_id: int, period: str = 'month') -> dict:
                 # Calculate effective start date (1 month ago or employee start date, whichever is later)
                 today = date.today()
                 one_month_ago = today - timedelta(days=30)
-                effective_start = max(one_month_ago, employee_start_date)
+                effective_start = max(one_month_ago, employee_start_date)  # protects new hires in the card view
 
                 # Use Python to count working days instead of complex SQL
                 working_days = _count_weekdays(effective_start, today)

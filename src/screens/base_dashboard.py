@@ -50,20 +50,17 @@ class DashboardBase(QWidget):
         main_layout = QVBoxLayout()
         main_layout.setContentsMargins(0, 0, 0, 0)
 
-        # === Top Header with Gradient Background ===
+        # === Top Header with Solid Background ===
         header_frame = QFrame()
-        header_frame.setStyleSheet("""
+        header_frame.setStyleSheet(
+            """
             QFrame {
-                background: qlineargradient(
-                    spread:pad,
-                    x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #60a5fa,
-                    stop:1 #fca5a5
-                );
+                background-color: #F76C7C;
                 border-radius: 8px;
                 padding: 12px;
             }
-        """)
+            """
+        )
         header_layout = QHBoxLayout()
 
         # Left Logo + Title
@@ -309,7 +306,7 @@ class DashboardBase(QWidget):
             self.attendance_table.setItem(r, 3, QTableWidgetItem(data.get('check_out', '--')))
             self.attendance_table.setItem(r, 4, QTableWidgetItem(data.get('status', '')))
 
-            view_btn = QPushButton("VIEW")
+            view_btn = QPushButton("VIEW DETAILS")
             view_btn.setStyleSheet("background-color: #f87171; color: white; padding: 5px; border-radius: 6px; margin: 2px;")
             emp_id = data.get('employee_id', '')
             view_btn.clicked.connect(lambda checked=False, eid=emp_id: self.show_employee_details(eid))
@@ -379,7 +376,7 @@ class DashboardBase(QWidget):
 
             leave_btn = QPushButton("Edit Leave")
             leave_btn.setStyleSheet("QPushButton{background:#f59e0b;color:white;padding:4px 8px;border-radius:6px;font-size:10px;}")
-            leave_btn.setFixedWidth(50)
+            leave_btn.setFixedWidth(80)
 
             edit_btn.clicked.connect(lambda checked, eid=emp_id: self.handle_edit_employee(eid))
             delete_btn.clicked.connect(lambda checked, eid=emp_id: self.handle_delete_employee(eid))
@@ -533,8 +530,8 @@ class DashboardBase(QWidget):
                         import datetime as _dt
                         import calendar as _cal
                         first_of_month = _dt.date(year, month, 1)
-                        last_of_month = _dt.date(year, month, _cal.monthrange(year, month)[1])
-                        cap_end = min(last_of_month, _dt.date.today())
+                        last_of_month = _dt.date(year, month, _cal.monthrange(year, month)[1]) #This line is used to determine the attendance "cap" for the end of the month.
+                        cap_end = min(last_of_month, _dt.date.today()) #cap end
                         def _count_weekdays(start: _dt.date, end: _dt.date) -> int:
                             d = start
                             cnt = 0
@@ -548,8 +545,9 @@ class DashboardBase(QWidget):
                         for e in emps:
                             created_at = e.get('created_at')
                             hire_date = created_at.date() if created_at else first_of_month
-                            eff_start = max(first_of_month, hire_date)
+                            eff_start = max(first_of_month, hire_date) #effective start
                             expected_days = _count_weekdays(eff_start, cap_end) if eff_start <= cap_end else 0
+                            # expected_days is the "cap" for this employee for the month
                             synthesized.append({
                                 'full_name': e.get('full_name', ''),
                                 'hours': 0.0,
@@ -608,7 +606,7 @@ class DashboardBase(QWidget):
                         import datetime as _dt
                         jan1 = _dt.date(year, 1, 1)
                         dec31 = _dt.date(year, 12, 31)
-                        cap_end = min(dec31, _dt.date.today())
+                        cap_end = min(dec31, _dt.date.today()) #cap end
                         def _count_weekdays(start: _dt.date, end: _dt.date) -> int:
                             d = start
                             cnt = 0
@@ -622,7 +620,7 @@ class DashboardBase(QWidget):
                         for e in emps:
                             created_at = e.get('created_at')
                             hire_date = created_at.date() if created_at else jan1
-                            eff_start = max(jan1, hire_date)
+                            eff_start = max(jan1, hire_date) #effective start
                             expected_days = _count_weekdays(eff_start, cap_end) if eff_start <= cap_end else 0
                             synthesized.append({
                                 'full_name': e.get('full_name', ''),

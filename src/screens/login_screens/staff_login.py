@@ -47,7 +47,7 @@ class StaffLoginScreen(QWidget):
         header_frame.setFixedHeight(180)
         header_frame.setStyleSheet("""
             QFrame {
-                background: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 #60a5fa, stop:1 #fca5a5);
+                background-color: #F76C7C;
                 border-top-left-radius: 20px;
                 border-top-right-radius: 20px;
                 border-bottom-left-radius: 0px;
@@ -149,14 +149,14 @@ class StaffLoginScreen(QWidget):
         self.login_btn.setFont(QFont("Inter", 14, QFont.Weight.Bold))
         self.login_btn.setStyleSheet("""
             QPushButton {
-                background: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 #60a5fa, stop:1 #fca5a5);
+                background-color: #F76C7C;
                 color: white;
                 border-radius: 15px;
                 border: none;
                 margin-top: 10px;
             }
             QPushButton:hover {
-                background: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 #3b82f6, stop:1 #f87171);
+                background-color: #F76C7C;
             }
         """)
         self.login_btn.clicked.connect(self.handle_login)

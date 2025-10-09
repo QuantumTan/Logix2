@@ -23,16 +23,11 @@ class AttendanceDashboard(QWidget):
 
         main_layout = QVBoxLayout()
 
-        # === Top Header with Gradient Background ===
+        # === Top Header with Solid Background ===
         header_frame = QFrame()
         header_frame.setStyleSheet("""
             QFrame {
-                background: qlineargradient(
-                    spread:pad,
-                    x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #60a5fa,
-                    stop:1 #fca5a5
-                );
+                background-color: #F76C7C;
                 border-radius: 8px;
                 padding: 12px;
             }
@@ -245,7 +240,7 @@ class AttendanceDashboard(QWidget):
             self.table.setItem(r, 2, QTableWidgetItem(data['check_in']))
             self.table.setItem(r, 3, QTableWidgetItem(data['check_out']))
             self.table.setItem(r, 4, QTableWidgetItem(data['status']))
-            view_btn = QPushButton("VIEW")
+            view_btn = QPushButton("VIEW DETAILS")
             view_btn.setStyleSheet("background-color: #f87171; color: white; padding: 5px; border-radius: 6px; margin: 2px;")
             view_btn.clicked.connect(lambda checked, emp_id=data['employee_id']: self.show_employee_details(emp_id))
             self.table.setCellWidget(r, 5, view_btn)

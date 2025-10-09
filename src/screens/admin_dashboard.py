@@ -4,11 +4,8 @@ from PyQt6.QtWidgets import QWidget, QMessageBox, QHBoxLayout, QPushButton, QTab
 from PyQt6.QtCore import Qt
 from .base_dashboard import DashboardBase
 from .add_employee_modal import AddEmployeeModal
-from .emp_details import EmployeeDetailsModal
 from .add_staff_modal import AddStaffModal
-from .change_password_modal import ChangePasswordModal
-from ..database.db_queries import get_all_staff, add_or_update_staff, delete_staff, update_employee, delete_employee, \
-    get_employee_by_id, get_employee_details
+from ..database.db_queries import get_all_staff, add_or_update_staff, delete_staff, update_employee, delete_employee
 
 
 class AdminDashboard(DashboardBase):
@@ -100,25 +97,18 @@ class AdminDashboard(DashboardBase):
             edit_btn = QPushButton("Edit")
             edit_btn.setStyleSheet(
                 "QPushButton{background:#60a5fa;color:white;padding:4px 8px;border-radius:6px;font-size:10px;}")
-            edit_btn.setFixedWidth(100)
-
-            change_pwd_btn = QPushButton("🔑 Password")
-            change_pwd_btn.setStyleSheet(
-                "QPushButton{background:#f59e0b;color:white;padding:4px 8px;border-radius:6px;font-size:10px;}")
-            change_pwd_btn.setFixedWidth(100)
+            edit_btn.setFixedWidth(150)
 
             delete_btn = QPushButton("Delete")
             delete_btn.setStyleSheet(
                 "QPushButton{background:#ef4444;color:white;padding:4px 8px;border-radius:6px;font-size:10px;}")
-            delete_btn.setFixedWidth(100)
+            delete_btn.setFixedWidth(150)
 
             username = s['username']
             edit_btn.clicked.connect(self._make_edit_staff_handler(username))
-            change_pwd_btn.clicked.connect(self._make_change_password_handler(username))
             delete_btn.clicked.connect(self._make_delete_staff_handler(username))
 
             h.addWidget(edit_btn)
-            h.addWidget(change_pwd_btn)
             h.addWidget(delete_btn)
             h.addStretch()
             self.staff_table.setCellWidget(r, 4, action_widget)
@@ -161,28 +151,6 @@ class AdminDashboard(DashboardBase):
                 QMessageBox.critical(self, "Error", f"Failed to load staff data: {str(e)}")
 
         return handler
-
-    def _make_change_password_handler(self, username):
-        def handler():
-            staff = get_all_staff()
-            user = next((s for s in staff if s['username'] == username), None)
-            if user:
-                modal = ChangePasswordModal(self, username=username, full_name=user['full_name'])
-                modal.password_changed.connect(
-                    lambda u, p: self._update_staff_password(u, user, p))
-                modal.exec()
-
-        return handler
-
-    def _update_staff_password(self, username, user, new_password):
-        """Handle staff password update with proper error handling"""
-        try:
-            add_or_update_staff(username, user['full_name'], user['role'], user['position'], new_password, True, mode='update')
-            QMessageBox.information(self, "Success", f"Password updated successfully for {user['full_name']}")
-            self.load_staff_table()
-        except Exception as e:
-            print(f"Error updating password: {e}")
-            QMessageBox.critical(self, "Error", f"Failed to update password: {str(e)}")
 
     def _make_delete_staff_handler(self, username):
         def handler():

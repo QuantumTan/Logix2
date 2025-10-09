@@ -61,6 +61,16 @@ class ReportsChartWidget(QWidget):
         lbl.setStyleSheet("color:#6b7280; font-size: 14px; padding: 40px; background: white; border-radius: 8px;")
         layout.addWidget(lbl)
 
+    def _compute_group_positions(self, x_vals, n_series=3, bar_width=0.22, gap=0.06):
+        """Compute x positions for each series within a grouped bar chart, centered on x_vals.
+        Returns list of lists: positions for each series.
+        """
+        total = n_series * bar_width + (n_series - 1) * gap
+        start = - (total / 2.0) + (bar_width / 2.0)
+        offsets = [start + i * (bar_width + gap) for i in range(n_series)]
+        series_positions = [[x + off for x in x_vals] for off in offsets]
+        return series_positions
+
     def load_static_demo_data(self):
         try:
             if not MATPLOTLIB_AVAILABLE or not self.canvas or not self.figure:
@@ -72,20 +82,21 @@ class ReportsChartWidget(QWidget):
             late = [5, 3, 4, 8]
             absent = [2, 4, 1, 3]
             x = list(range(len(departments)))
-            width = 0.25
-            x_present = [i - width for i in x]
-            x_late = x
-            x_absent = [i + width for i in x]
-            ax.bar(x_present, present, width=width, color="#10b981", label="Present", alpha=0.9)
-            ax.bar(x_late, late, width=width, color="#f59e0b", label="Late", alpha=0.9)
-            ax.bar(x_absent, absent, width=width, color="#ef4444", label="Absent", alpha=0.9)
+            # Use narrower bars and explicit gaps to avoid bars sticking together
+            bar_width = 0.22
+            gap = 0.06
+            x_present, x_late, x_absent = self._compute_group_positions(x, n_series=3, bar_width=bar_width, gap=gap)
+            ax.bar(x_present, present, width=bar_width, color="#10b981", label="Present", alpha=0.9)
+            ax.bar(x_late, late, width=bar_width, color="#f59e0b", label="Late", alpha=0.9)
+            ax.bar(x_absent, absent, width=bar_width, color="#ef4444", label="Absent", alpha=0.9)
             ax.set_xticks(x)
             ax.set_xticklabels(departments)
             ax.set_title('Sample Attendance Report', fontweight='bold')
             ax.set_ylabel('Number of Employees')
             ax.grid(True, axis='y', linestyle='--', alpha=0.3)
             ax.legend()
-            self.figure.subplots_adjust(left=0.1, bottom=0.15, right=0.9, top=0.9)
+            ax.margins(x=0.05)
+            self.figure.subplots_adjust(left=0.1, bottom=0.15, right=0.95, top=0.9)
             self.canvas.draw()
         except Exception as e:
             print(f"Failed to load demo chart data: {e}")
@@ -102,19 +113,20 @@ class ReportsChartWidget(QWidget):
             self.figure.clear()
             ax = self.figure.add_subplot(111)
             x = list(range(len(labels)))
-            width = 0.25 if len(labels) > 0 else 0.25
-            x_present = [i - width for i in x]
-            x_late = x
-            x_absent = [i + width for i in x]
-            ax.bar(x_present, present, width=width, color="#10b981", label="Present", alpha=0.9)
-            ax.bar(x_late, late, width=width, color="#f59e0b", label="Late", alpha=0.9)
-            ax.bar(x_absent, absent, width=width, color="#ef4444", label="Absent", alpha=0.9)
+            # Use narrower bars and explicit gaps to avoid bars sticking together
+            bar_width = 0.22 if len(labels) > 0 else 0.22
+            gap = 0.06
+            x_present, x_late, x_absent = self._compute_group_positions(x, n_series=3, bar_width=bar_width, gap=gap)
+            ax.bar(x_present, present, width=bar_width, color="#10b981", label="Present", alpha=0.9)
+            ax.bar(x_late, late, width=bar_width, color="#f59e0b", label="Late", alpha=0.9)
+            ax.bar(x_absent, absent, width=bar_width, color="#ef4444", label="Absent", alpha=0.9)
             ax.set_xticks(x)
             ax.set_xticklabels(labels, rotation=0 if len(labels) <= 6 else 20, ha='right')
             ax.set_title(title, fontweight='bold')
             ax.set_ylabel('Number of Employees')
             ax.grid(True, axis='y', linestyle='--', alpha=0.3)
             ax.legend()
+            ax.margins(x=0.05)
             self.figure.subplots_adjust(left=0.1, bottom=0.2 if len(labels) > 6 else 0.15, right=0.95, top=0.9)
             self.canvas.draw()
         except Exception as e:

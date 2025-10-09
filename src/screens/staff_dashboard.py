@@ -16,10 +16,38 @@ class StaffDashboard(DashboardBase):
         self.setup_employee_management_page()
         self.setup_reports_page()
 
+        # Restrict Reports access to Monthly only for staff users
+        self._restrict_staff_reports_to_monthly()
+
         self.logout_btn.clicked.connect(self.handle_logout)
         self.add_emp_btn.clicked.connect(self.show_add_employee_modal)
 
         self.switch_tab("attendance")
+
+    def _restrict_staff_reports_to_monthly(self):
+        try:
+            # Allow only Daily, Weekly, Monthly in the main reports period selector (remove Yearly)
+            if hasattr(self, 'period_combo') and self.period_combo is not None:
+                self.period_combo.blockSignals(True)
+                self.period_combo.clear()
+                self.period_combo.addItems(["Daily", "Weekly", "Monthly"])
+                # Default to Daily (staff sees Daily bar graph by default)
+                self.period_combo.setCurrentText("Daily")
+                self.period_combo.blockSignals(False)
+
+            # Limit the individual hours view selector to Monthly only
+            if hasattr(self, 'indiv_view_combo') and self.indiv_view_combo is not None:
+                self.indiv_view_combo.blockSignals(True)
+                self.indiv_view_combo.clear()
+                self.indiv_view_combo.addItems(["Monthly"])
+                self.indiv_view_combo.setCurrentIndex(0)
+                self.indiv_view_combo.blockSignals(False)
+
+            # Refresh the reports view to reflect the restriction immediately
+            if hasattr(self, 'update_reports_view') and hasattr(self, 'period_combo') and self.period_combo is not None:
+                self.update_reports_view(self.period_combo.currentText())
+        except Exception as e:
+            print(f"[StaffDashboard] Failed to apply staff report period restrictions: {e}")
 
 
     # overrides the base_dashboard method to delete button in the employee management table

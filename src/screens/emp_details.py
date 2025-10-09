@@ -43,18 +43,15 @@ class EmployeeDetailsModal(QDialog):
 
         # --- Header ---
         header_frame = QFrame()
-        header_frame.setStyleSheet("""
+        header_frame.setStyleSheet(
+            """
             QFrame {
-                background: qlineargradient(
-                    spread:pad,
-                    x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #60a5fa,
-                    stop:1 #fca5a5
-                );
+                background-color: #F76C7C;
                 border-radius: 0px;
                 padding: 20px;
             }
-        """)
+            """
+        )
         header_layout = QHBoxLayout()
 
         title_label = QLabel("Employee Details")
