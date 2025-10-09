@@ -38,8 +38,6 @@ from .attendance import (
     get_all_employees_hours_for_month,
     get_all_employees_hours_for_year,
     get_employee_yearly_hours,
-    get_employee_details_by_date_range,
-    get_employee_monthly_attendance_details,
 )
 
 __all__ = [
@@ -54,5 +52,4 @@ __all__ = [
     'employee_check_in', 'employee_check_out', 'get_employee_details', 'get_department_attendance',
     'get_today_attendance', 'get_today_stats', 'get_employee_monthly_hours',
     'get_all_employees_hours_for_month', 'get_all_employees_hours_for_year', 'get_employee_yearly_hours',
-    'get_employee_details_by_date_range', 'get_employee_monthly_attendance_details',
 ]

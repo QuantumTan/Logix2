@@ -4,13 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="424a9e44-a74b-4f9d-8f5e-32cb529758ff" name="Changes" comment="updated the readme file structure to the latest">
-      <change afterPath="$PROJECT_DIR$/test_imports.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/Logix.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/Logix.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+    <list default="true" id="424a9e44-a74b-4f9d-8f5e-32cb529758ff" name="Changes" comment="Remove individual employee search functionality and related UI components">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/screens/base_dashboard.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/screens/base_dashboard.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/screens/components/reports_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/screens/components/reports_view.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/database/attendance.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/database/attendance.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/database/db_queries.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/database/db_queries.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -167,7 +164,7 @@
       <workItem from="1759476202751" duration="4740000" />
       <workItem from="1759927898652" duration="3185000" />
       <workItem from="1759932747147" duration="79000" />
-      <workItem from="1759966557141" duration="337000" />
+      <workItem from="1759966557141" duration="2540000" />
     </task>
     <task id="LOCAL-00001" summary="Add core screens and database setup for staff/admin login, employee management, and attendance&#10;&#10;- Implement PyQt6 UI screens: admin/staff login, staff dashboard, add/edit employee/staff modals, change password modal, employee details modal&#10;- Add database setup and config scripts for MySQL (db_setup.py, db_config.py)&#10;- Integrate authentication and employee management logic&#10;- Update workspace.xml for new assets and modules">
       <option name="closed" value="true" />
@@ -345,7 +342,15 @@
       <option name="project" value="LOCAL" />
       <updated>1759454769317</updated>
     </task>
-    <option name="localTasksCounter" value="23" />
+    <task id="LOCAL-00023" summary="Remove individual employee search functionality and related UI components">
+      <option name="closed" value="true" />
+      <created>1759967130867</created>
+      <option name="number" value="00023" />
+      <option name="presentableId" value="LOCAL-00023" />
+      <option name="project" value="LOCAL" />
+      <updated>1759967130867</updated>
+    </task>
+    <option name="localTasksCounter" value="24" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -360,13 +365,14 @@
     <MESSAGE value="Add configuration constants and enhance attendance management UI" />
     <MESSAGE value="Enhance image handling and error management in employee update process" />
     <MESSAGE value="updated the readme file structure to the latest" />
-    <option name="LAST_COMMIT_MESSAGE" value="updated the readme file structure to the latest" />
+    <MESSAGE value="Remove individual employee search functionality and related UI components" />
+    <option name="LAST_COMMIT_MESSAGE" value="Remove individual employee search functionality and related UI components" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/Logix$base_dashboard.coverage" NAME="base_dashboard Coverage Results" MODIFIED="1759057641814" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/screens" />
     <SUITE FILE_PATH="coverage/Logix$test.coverage" NAME="test Coverage Results" MODIFIED="1759231150579" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/screens" />
     <SUITE FILE_PATH="coverage/Logix$main.coverage" NAME="main Coverage Results" MODIFIED="1759483447113" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/Logix$admin_dashboard.coverage" NAME="admin_dashboard Coverage Results" MODIFIED="1759231192240" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/screens" />
-    <SUITE FILE_PATH="coverage/Logix2$main.coverage" NAME="main Coverage Results" MODIFIED="1759966638365" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/Logix2$main.coverage" NAME="main Coverage Results" MODIFIED="1759970690454" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
 </project>
