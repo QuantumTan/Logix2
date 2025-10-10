@@ -46,7 +46,7 @@ class EmployeeDetailsModal(QDialog):
         header_frame.setStyleSheet(
             """
             QFrame {
-                background-color: #F76C7C;
+                background-color: #FFFFFF;
                 border-radius: 0px;
                 padding: 20px;
             }
@@ -56,7 +56,7 @@ class EmployeeDetailsModal(QDialog):
 
         title_label = QLabel("Employee Details")
         title_label.setFont(QFont("Inter", 18, QFont.Weight.Bold))
-        title_label.setStyleSheet("color: white; background: transparent; margin-left: 15px;")
+        title_label.setStyleSheet("color: #000000; background: transparent; margin-left: 15px;")
 
         header_layout.addWidget(title_label)
         header_layout.addStretch()

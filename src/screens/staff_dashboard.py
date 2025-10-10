@@ -74,12 +74,12 @@ class StaffDashboard(DashboardBase):
             edit_btn = QPushButton("Edit")
             edit_btn.setStyleSheet(
                 "QPushButton{background:#60a5fa;color:white;padding:4px 8px;border-radius:6px;font-size:10px;}")
-            edit_btn.setFixedWidth(100)
+            edit_btn.setFixedWidth(130)
 
             leave_btn = QPushButton("Edit Leave")
             leave_btn.setStyleSheet(
                 "QPushButton{background:#f59e0b;color:white;padding:4px 8px;border-radius:6px;font-size:10px;}")
-            leave_btn.setFixedWidth(100)
+            leave_btn.setFixedWidth(130)
 
             edit_btn.clicked.connect(lambda checked, eid=emp_id: self.handle_edit_employee(eid))
             leave_btn.clicked.connect(lambda checked, eid=emp_id: self.handle_edit_leave(eid))

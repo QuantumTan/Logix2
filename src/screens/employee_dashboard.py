@@ -27,7 +27,7 @@ class AttendanceDashboard(QWidget):
         header_frame = QFrame()
         header_frame.setStyleSheet("""
             QFrame {
-                background-color: #F76C7C;
+                background-color: #FFFFFF;
                 border-radius: 8px;
                 padding: 12px;
             }
@@ -43,7 +43,7 @@ class AttendanceDashboard(QWidget):
 
         title = QLabel("LOGIX\nAttendance Monitoring System")
         title.setFont(QFont("Inter", 18, QFont.Weight.Bold))
-        title.setStyleSheet("color: white; margin-left: 10px; background-color: transparent;")
+        title.setStyleSheet("color: #000000; margin-left: 10px; background-color: transparent;")
         title.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
 
         left_layout = QHBoxLayout()
@@ -58,11 +58,11 @@ class AttendanceDashboard(QWidget):
         today_label = QLabel("Today")
         today_label.setFont(QFont("Inter", 14, QFont.Weight.Bold))
         today_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        today_label.setStyleSheet("color: white; background-color: transparent;")
+        today_label.setStyleSheet("color: #000000; background-color: transparent;")
 
         self.date_label = QLabel(QDate.currentDate().toString(DATE_DISPLAY_FORMAT))
         self.date_label.setFont(QFont("Inter", 12))
-        self.date_label.setStyleSheet("color: white; background-color: transparent;")
+        self.date_label.setStyleSheet("color: #000000; background-color: transparent;")
 
         date_layout.addWidget(today_label)
         date_layout.addWidget(self.date_label)
@@ -72,11 +72,11 @@ class AttendanceDashboard(QWidget):
         buttons_layout.setSpacing(10)
 
         staff_btn = QPushButton("Staff Login")
-        staff_btn.setStyleSheet("background-color: white; color: #f87171; padding: 10px 20px; border-radius: 8px; font-weight: bold;")
+        staff_btn.setStyleSheet("background-color: #3b82f6; color: white; padding: 10px 20px; border-radius: 8px; font-weight: bold;")
         staff_btn.setFixedWidth(120)
 
         admin_btn = QPushButton("Admin Login")
-        admin_btn.setStyleSheet("background-color: white; color: #f87171; padding: 10px 20px; border-radius: 8px; font-weight: bold;")
+        admin_btn.setStyleSheet("background-color: #3b82f6; color: white; padding: 10px 20px; border-radius: 8px; font-weight: bold;")
         admin_btn.setFixedWidth(120)
 
         buttons_layout.addWidget(staff_btn)
@@ -240,7 +240,7 @@ class AttendanceDashboard(QWidget):
             self.table.setItem(r, 2, QTableWidgetItem(data['check_in']))
             self.table.setItem(r, 3, QTableWidgetItem(data['check_out']))
             self.table.setItem(r, 4, QTableWidgetItem(data['status']))
-            view_btn = QPushButton("VIEW DETAILS")
+            view_btn = QPushButton("View Details")
             view_btn.setStyleSheet("background-color: #f87171; color: white; padding: 5px; border-radius: 6px; margin: 2px;")
             view_btn.clicked.connect(lambda checked, emp_id=data['employee_id']: self.show_employee_details(emp_id))
             self.table.setCellWidget(r, 5, view_btn)

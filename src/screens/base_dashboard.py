@@ -55,7 +55,7 @@ class DashboardBase(QWidget):
         header_frame.setStyleSheet(
             """
             QFrame {
-                background-color: #F76C7C;
+                background-color: #FFFFFF;
                 border-radius: 8px;
                 padding: 12px;
             }
@@ -72,7 +72,7 @@ class DashboardBase(QWidget):
 
         title = QLabel("LOGIX\nAttendance Monitoring System")
         title.setFont(QFont("Inter", 18, QFont.Weight.Bold))
-        title.setStyleSheet("color: white; margin-left: 10px; background-color: transparent;")
+        title.setStyleSheet("color: #000000; margin-left: 10px; background-color: transparent;")
         title.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
 
         left_layout = QHBoxLayout()
@@ -87,11 +87,11 @@ class DashboardBase(QWidget):
         today_label = QLabel("Today")
         today_label.setFont(QFont("Inter", 14, QFont.Weight.Bold))
         today_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        today_label.setStyleSheet("color: white; background-color: transparent;")
+        today_label.setStyleSheet("color: #000000; background-color: transparent;")
 
         self.date_label = QLabel(QDate.currentDate().toString(DATE_DISPLAY_FORMAT))
         self.date_label.setFont(QFont("Inter", 12))
-        self.date_label.setStyleSheet("color: white; background-color: transparent;")
+        self.date_label.setStyleSheet("color: #000000; background-color: transparent;")
 
         date_layout.addWidget(today_label)
         date_layout.addWidget(self.date_label)
@@ -306,7 +306,7 @@ class DashboardBase(QWidget):
             self.attendance_table.setItem(r, 3, QTableWidgetItem(data.get('check_out', '--')))
             self.attendance_table.setItem(r, 4, QTableWidgetItem(data.get('status', '')))
 
-            view_btn = QPushButton("VIEW DETAILS")
+            view_btn = QPushButton("View Details")
             view_btn.setStyleSheet("background-color: #f87171; color: white; padding: 5px; border-radius: 6px; margin: 2px;")
             emp_id = data.get('employee_id', '')
             view_btn.clicked.connect(lambda checked=False, eid=emp_id: self.show_employee_details(eid))
@@ -368,11 +368,11 @@ class DashboardBase(QWidget):
 
             edit_btn = QPushButton("Edit")
             edit_btn.setStyleSheet("QPushButton{background:#60a5fa;color:white;padding:4px 8px;border-radius:6px;font-size:10px;}")
-            edit_btn.setFixedWidth(50)
+            edit_btn.setFixedWidth(80)
 
-            delete_btn = QPushButton("Delete")
+            delete_btn = QPushButton("Deactivate")
             delete_btn.setStyleSheet("QPushButton{background:#ef4444;color:white;padding:4px 8px;border-radius:6px;font-size:10px;}")
-            delete_btn.setFixedWidth(50)
+            delete_btn.setFixedWidth(80)
 
             leave_btn = QPushButton("Edit Leave")
             leave_btn.setStyleSheet("QPushButton{background:#f59e0b;color:white;padding:4px 8px;border-radius:6px;font-size:10px;}")

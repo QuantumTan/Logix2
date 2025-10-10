@@ -47,7 +47,7 @@ class StaffLoginScreen(QWidget):
         header_frame.setFixedHeight(180)
         header_frame.setStyleSheet("""
             QFrame {
-                background-color: #F76C7C;
+                background-color: #FFFFFF;
                 border-top-left-radius: 20px;
                 border-top-right-radius: 20px;
                 border-bottom-left-radius: 0px;
@@ -64,17 +64,17 @@ class StaffLoginScreen(QWidget):
         pixmap = QPixmap("assets/logix.png")
         pixmap = pixmap.scaled(60, 90, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
         logo_label.setPixmap(pixmap)
-        logo_label.setStyleSheet("background-color: transparent; color: white;")
+        logo_label.setStyleSheet("background-color: transparent; color: #000000;")
 
         text_layout = QVBoxLayout()
 
         title_label = QLabel("LOGIX")
         title_label.setFont(QFont("Inter", 18, QFont.Weight.Bold))
-        title_label.setStyleSheet("color: white; background-color: transparent; margin-bottom: 5px;")
+        title_label.setStyleSheet("color: #000000; background-color: transparent; margin-bottom: 5px;")
 
         subtitle1_label = QLabel("Login to access staff management<br>dashboard")
         subtitle1_label.setFont(QFont("Inter", 11))
-        subtitle1_label.setStyleSheet("color: white; background-color: transparent;")
+        subtitle1_label.setStyleSheet("color: #000000; background-color: transparent;")
 
         text_layout.addWidget(title_label)
         text_layout.addWidget(subtitle1_label)
@@ -149,14 +149,14 @@ class StaffLoginScreen(QWidget):
         self.login_btn.setFont(QFont("Inter", 14, QFont.Weight.Bold))
         self.login_btn.setStyleSheet("""
             QPushButton {
-                background-color: #F76C7C;
+                background-color: #3b82f6;
                 color: white;
                 border-radius: 15px;
                 border: none;
                 margin-top: 10px;
             }
             QPushButton:hover {
-                background-color: #F76C7C;
+                background-color: #2563eb;
             }
         """)
         self.login_btn.clicked.connect(self.handle_login)

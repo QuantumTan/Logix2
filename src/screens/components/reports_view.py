@@ -45,7 +45,7 @@ class ReportsView(QScrollArea):
         self.reports_chart_header = QLabel("📊 Daily Attendance Report")
         self.reports_chart_header.setFont(QFont("Inter", 18, QFont.Weight.Bold))
         self.reports_chart_header.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.reports_chart_header.setStyleSheet("color: #1f2937; margin: 10px 0; padding: 10px; background: #f9fafb; border-radius: 8px;")
+        self.reports_chart_header.setStyleSheet("color: #000000; margin: 10px 0; padding: 10px; background: #FFFFFF; border-radius: 8px;")
         layout.addWidget(self.reports_chart_header)
 
         # Chart container with fixed height
@@ -71,7 +71,7 @@ class ReportsView(QScrollArea):
         indiv_header = QLabel("👤 Individual Employee Working Hours")
         indiv_header.setFont(QFont("Inter", 16, QFont.Weight.Bold))
         indiv_header.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        indiv_header.setStyleSheet("color: #1f2937; margin-top: 20px; margin-bottom: 10px; padding: 10px; background: #f9fafb; border-radius: 8px;")
+        indiv_header.setStyleSheet("color: #000000; margin-top: 20px; margin-bottom: 10px; padding: 10px; background: #FFFFFF; border-radius: 8px;")
         layout.addWidget(indiv_header)
 
         indiv_controls = QHBoxLayout()

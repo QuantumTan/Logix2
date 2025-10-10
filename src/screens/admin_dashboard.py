@@ -97,12 +97,12 @@ class AdminDashboard(DashboardBase):
             edit_btn = QPushButton("Edit")
             edit_btn.setStyleSheet(
                 "QPushButton{background:#60a5fa;color:white;padding:4px 8px;border-radius:6px;font-size:10px;}")
-            edit_btn.setFixedWidth(150)
+            edit_btn.setFixedWidth(180)
 
-            delete_btn = QPushButton("Delete")
+            delete_btn = QPushButton("Deactivate")
             delete_btn.setStyleSheet(
                 "QPushButton{background:#ef4444;color:white;padding:4px 8px;border-radius:6px;font-size:10px;}")
-            delete_btn.setFixedWidth(150)
+            delete_btn.setFixedWidth(180)
 
             username = s['username']
             edit_btn.clicked.connect(self._make_edit_staff_handler(username))
@@ -154,7 +154,7 @@ class AdminDashboard(DashboardBase):
 
     def _make_delete_staff_handler(self, username):
         def handler():
-            if QMessageBox.warning(self, "Confirm", "Delete staff?",
+            if QMessageBox.warning(self, "Confirm", "Deactivate staff?",
                                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No) == QMessageBox.StandardButton.Yes:
                 delete_staff(username)
                 self.load_staff_table()
@@ -318,7 +318,7 @@ class AdminDashboard(DashboardBase):
             QMessageBox.critical(self, "Error", "Failed to update employee.")
 
     def handle_delete_employee(self, emp_id):
-        if QMessageBox.warning(self, "Confirm Delete", "Are you sure?",
+        if QMessageBox.warning(self, "Confirm Deactivate", "Deactivate employee?",
                                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No) == QMessageBox.StandardButton.Yes:
             delete_employee(emp_id)
             self.load_employee_data()
